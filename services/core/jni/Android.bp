@@ -202,6 +202,8 @@ cc_defaults {
         "android.system.suspend-V1-ndk",
         "server_configurable_flags",
         "service.incremental",
+        "vendor.samsung.hardware.light@2.0",
+        "vendor.samsung.hardware.light@3.0",
     ],
 
     static_libs: [
