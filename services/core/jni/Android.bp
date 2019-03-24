@@ -205,6 +205,8 @@ cc_defaults {
         "android_location_flags_c_lib",
         "server_configurable_flags",
         "service.incremental",
+        "vendor.samsung.hardware.light@2.0",
+        "vendor.samsung.hardware.light@3.0",
     ],
 
     static_libs: [
