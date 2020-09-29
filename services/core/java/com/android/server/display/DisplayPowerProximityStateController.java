@@ -418,6 +418,9 @@ public final class DisplayPowerProximityStateController {
         if (mProximitySensor != null) {
             mProximityThreshold = Math.min(mProximitySensor.getMaximumRange(),
                     TYPICAL_PROXIMITY_THRESHOLD);
+            if(Float.isNaN(mProximityThreshold)) {
+                mProximityThreshold = 5.0f;
+            }
         }
     }
 
