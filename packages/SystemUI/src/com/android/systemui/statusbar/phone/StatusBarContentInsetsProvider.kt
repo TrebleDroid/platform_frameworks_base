@@ -39,6 +39,7 @@ import com.android.systemui.util.leak.RotationUtils.Rotation
 import com.android.systemui.util.leak.RotationUtils.getExactRotation
 import com.android.systemui.util.leak.RotationUtils.getResourcesForRotation
 import com.android.systemui.util.traceSection
+import android.os.SystemProperties
 
 import java.io.PrintWriter
 import java.lang.Math.max
@@ -231,7 +232,9 @@ class StatusBarContentInsetsProvider @Inject constructor(
     ): Rect {
         val currentRotation = getExactRotation(context)
 
-        val roundedCornerPadding = rotatedResources
+        var roundedCornerPadding = SystemProperties.getInt("persist.sys.phh.rounded_corners_padding", -1);
+        if(roundedCornerPadding == -1)
+            roundedCornerPadding = rotatedResources
                 .getDimensionPixelSize(R.dimen.rounded_corner_content_padding)
         val minDotPadding = if (isPrivacyDotEnabled)
                 rotatedResources.getDimensionPixelSize(R.dimen.ongoing_appops_dot_min_padding)
