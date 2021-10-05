@@ -897,9 +897,14 @@ public class DisplayDeviceConfig {
      */
     public static DisplayDeviceConfig create(Context context, boolean useConfigXml,
             DisplayManagerFlags flags) {
-        final DisplayDeviceConfig config;
+        DisplayDeviceConfig config;
         if (useConfigXml) {
-            config = getConfigFromGlobalXml(context, flags);
+            try {
+                config = getConfigFromGlobalXml(context, flags);
+            } catch(Exception e) {
+                android.util.Log.e("PHH", "Failed parsing automatic brightness values, fallbacking", e);
+                config = getConfigFromPmValues(context, flags);
+            }
         } else {
             config = getConfigFromPmValues(context, flags);
         }
