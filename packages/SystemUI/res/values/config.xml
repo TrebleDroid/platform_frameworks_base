@@ -577,7 +577,7 @@
 
     <!-- The radius of the enrollment progress bar, in dp -->
     <integer name="config_udfpsEnrollProgressBar" translatable="false">
-        280
+        70
     </integer>
 
     <!-- The time (in ms) needed to trigger the lock icon view's long-press affordance -->
