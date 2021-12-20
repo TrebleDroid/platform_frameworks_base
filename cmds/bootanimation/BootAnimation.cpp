@@ -605,6 +605,28 @@ status_t BootAnimation::readyToRun() {
     mFlingerSurface = s;
     mTargetInset = -1;
 
+    if ( mAnimation != nullptr ) {
+        SLOGE("Got screen size %d, animation size %d", mWidth, mAnimation->width);
+        int origWidth = mAnimation->width;
+        if ( mAnimation->width*2 < mWidth ) {
+            SLOGE("Making animation bigger");
+            mAnimation->width *= 2;
+            mAnimation->height *= 2;
+        } else if ( mWidth < mAnimation->width ) {
+            SLOGE("Making animation smaller");
+            mAnimation->width /= 2;
+            mAnimation->height /= 2;
+        }
+        for (Animation::Part& part : mAnimation->parts) {
+            for(auto& frame: part.frames) {
+                if(frame.trimWidth == origWidth && frame.trimX == 0 && frame.trimY == 0) {
+                    frame.trimWidth = mAnimation->width;
+                    frame.trimHeight = mAnimation->height;
+                }
+            }
+        }
+    }
+
     // Rotate the boot animation according to the value specified in the sysprop
     // ro.bootanim.set_orientation_<display_id>. Four values are supported: ORIENTATION_0,
     // ORIENTATION_90, ORIENTATION_180 and ORIENTATION_270.
