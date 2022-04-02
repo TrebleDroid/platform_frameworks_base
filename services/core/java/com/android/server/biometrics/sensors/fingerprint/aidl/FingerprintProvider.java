@@ -674,6 +674,8 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
     @Override
     public void scheduleInternalCleanup(int sensorId, int userId,
             @Nullable ClientMonitorCallback callback, boolean favorHalEnrollments) {
+	final boolean mNocleanup = android.os.SystemProperties.getBoolean("persist.sys.phh.fingerprint.nocleanup", false);
+	if(mNocleanup) return;
         mHandler.post(() -> {
             final FingerprintInternalCleanupClient client =
                     new FingerprintInternalCleanupClient(mContext,
