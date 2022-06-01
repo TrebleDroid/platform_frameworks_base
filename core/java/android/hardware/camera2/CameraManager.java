@@ -2358,6 +2358,15 @@ public final class CameraManager {
                             return s1.compareTo(s2);
                         }
                     }});
+
+            // HAXX: Allow overriding default primary camera (assumed to be camera 0) via property
+            // Should match with libcameraservice/common/CameraProviderManager.cpp
+            int altPrimaryCamera = SystemProperties.getInt("persist.sys.alt_primary_camera", -1);
+            if (altPrimaryCamera > 0 && altPrimaryCamera < cameraIds.length) {
+                String origPrimary = cameraIds[0];
+                cameraIds[0] = cameraIds[altPrimaryCamera];
+                cameraIds[altPrimaryCamera] = origPrimary;
+            }
         }
 
         private boolean shouldHideCamera(int currentDeviceId, int devicePolicy,
