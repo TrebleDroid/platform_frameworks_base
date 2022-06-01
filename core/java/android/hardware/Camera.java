@@ -45,6 +45,7 @@ import android.os.Message;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.os.SystemProperties;
 import android.renderscript.Allocation;
 import android.renderscript.Element;
 import android.renderscript.RSIllegalArgumentException;
@@ -408,6 +409,11 @@ public class Camera {
      * @see #open(int)
      */
     public static Camera open() {
+        int altPrimaryCamera = SystemProperties.getInt("persist.sys.alt_primary_camera", -1);
+        if (altPrimaryCamera > 0) {
+            return new Camera(altPrimaryCamera);
+        }
+
         int numberOfCameras = getNumberOfCameras();
         CameraInfo cameraInfo = new CameraInfo();
         for (int i = 0; i < numberOfCameras; i++) {
