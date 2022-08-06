@@ -210,7 +210,8 @@ public class Environment {
      */
     @RavenwoodRedirect(comment = "Use java props on Ravenwood")
     private static String getEnvPath(String variableName) {
-        return System.getenv(variableName);
+        String path = System.getenv(variableName);
+        return (path == null || path.isEmpty()) ? null : path;
     }
 
     static {
