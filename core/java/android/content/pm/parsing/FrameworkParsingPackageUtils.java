@@ -215,8 +215,16 @@ public class FrameworkParsingPackageUtils {
         for (int i = 0; i < propNames.length; i++) {
             // Check property value: make sure it is both set and equal to expected value
             final String currValue = SystemProperties.get(propNames[i]);
-            if (!TextUtils.equals(currValue, propValues[i])) {
-                return false;
+            if (propValues[i].startsWith("+") && propValues[i].endsWith("*")) {
+                // Glob matching
+                int idx = TextUtils.indexOf(currValue, propValues[i].substring(1, propValues[i].length() - 1));
+                if (idx < 0) {
+                    return false;
+                }
+            } else {
+                if (!TextUtils.equals(currValue, propValues[i])) {
+                    return false;
+                }
             }
         }
         return true;
