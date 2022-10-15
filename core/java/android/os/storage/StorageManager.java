@@ -1670,6 +1670,15 @@ public class StorageManager {
     }
 
     /** {@hide}
+     * Is this device encryptable or already encrypted?
+     * @return true for encryptable or encrypted
+     *         false not encrypted and not encryptable
+     */
+    public static boolean isEncryptable() {
+        return RoSystemProperties.CRYPTO_ENCRYPTABLE;
+    }
+
+    /** {@hide}
      * Is this device encrypted?
      * <p>
      * Note: all devices launching with Android 10 (API level 29) or later are
@@ -1700,6 +1709,54 @@ public class StorageManager {
     @Deprecated
     public static boolean isFileEncryptedNativeOnly() {
         return isFileEncrypted();
+    }
+
+    /** {@hide}
+     * Is this device block encrypted?
+     * @return true for block encrypted. (Implies isEncrypted() == true)
+     *         false not encrypted or file encrypted
+     */
+    public static boolean isBlockEncrypted() {
+        return false;
+    }
+
+    /** {@hide}
+     * Is this device block encrypted with credentials?
+     * @return true for crediential block encrypted.
+     *         (Implies isBlockEncrypted() == true)
+     *         false not encrypted, file encrypted or default block encrypted
+     */
+    public static boolean isNonDefaultBlockEncrypted() {
+        return false;
+    }
+
+    /** {@hide}
+     * Is this device in the process of being block encrypted?
+     * @return true for encrypting.
+     *         false otherwise
+     * Whether device isEncrypted at this point is undefined
+     * Note that only system services and CryptKeeper will ever see this return
+     * true - no app will ever be launched in this state.
+     * Also note that this state will not change without a teardown of the
+     * framework, so no service needs to check for changes during their lifespan
+     */
+    public static boolean isBlockEncrypting() {
+        return false;
+    }
+
+    /** {@hide}
+     * Is this device non default block encrypted and in the process of
+     * prompting for credentials?
+     * @return true for prompting for credentials.
+     *         (Implies isNonDefaultBlockEncrypted() == true)
+     *         false otherwise
+     * Note that only system services and CryptKeeper will ever see this return
+     * true - no app will ever be launched in this state.
+     * Also note that this state will not change without a teardown of the
+     * framework, so no service needs to check for changes during their lifespan
+     */
+    public static boolean inCryptKeeperBounce() {
+        return false;
     }
 
     /** {@hide}
