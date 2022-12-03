@@ -666,7 +666,7 @@ public class AuthService extends SystemService {
         if (pm.hasSystemFeature(PackageManager.FEATURE_FACE)) {
             modalities.add(String.valueOf(BiometricAuthenticator.TYPE_FACE));
         }
-        final String strength = String.valueOf(Authenticators.BIOMETRIC_CONVENIENCE);
+        final String strength = String.valueOf(Authenticators.BIOMETRIC_STRONG);
         final String[] configStrings = new String[modalities.size()];
         for (int i = 0; i < modalities.size(); ++i) {
             final String id = String.valueOf(i);
