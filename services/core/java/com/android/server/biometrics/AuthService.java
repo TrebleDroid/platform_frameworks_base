@@ -653,7 +653,7 @@ public class AuthService extends SystemService {
             final int firstApiLevel = SystemProperties.getInt(SYSPROP_FIRST_API_LEVEL, 0);
             final int apiLevel = SystemProperties.getInt(SYSPROP_API_LEVEL, firstApiLevel);
             String[] configStrings = mInjector.getConfiguration(getContext());
-            if (configStrings.length == 0 && apiLevel == Build.VERSION_CODES.R) {
+            if (configStrings.length == 0 && apiLevel <= Build.VERSION_CODES.R) {
                 // For backwards compatibility with R where biometrics could work without being
                 // configured in config_biometric_sensors. In the absence of a vendor provided
                 // configuration, we assume the weakest biometric strength (i.e. convenience).
@@ -688,7 +688,7 @@ public class AuthService extends SystemService {
         if (pm.hasSystemFeature(PackageManager.FEATURE_FACE)) {
             modalities.add(String.valueOf(BiometricAuthenticator.TYPE_FACE));
         }
-        final String strength = String.valueOf(Authenticators.BIOMETRIC_CONVENIENCE);
+        final String strength = String.valueOf(Authenticators.BIOMETRIC_STRONG);
         final String[] configStrings = new String[modalities.size()];
         for (int i = 0; i < modalities.size(); ++i) {
             final String id = String.valueOf(i);
