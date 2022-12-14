@@ -173,6 +173,7 @@ java_library_static {
         "overlayable_policy_aidl-java",
         "SurfaceFlingerProperties",
         "com.android.sysprop.watchdog",
+        "vendor.samsung.hardware.sysinput-V1.2-java", // HIDL
     ],
     javac_shard_size: 50,
 }
