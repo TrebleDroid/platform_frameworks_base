@@ -186,6 +186,7 @@ java_library_static {
         "com.android.sysprop.watchdog",
         "ImmutabilityAnnotation",
         "securebox",
+        "vendor.samsung.hardware.sysinput-V1.2-java", // HIDL
     ],
     javac_shard_size: 50,
     javacflags: [
