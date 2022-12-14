@@ -33,6 +33,7 @@ import android.os.Trace;
 import android.util.DisplayUtils;
 import android.util.LongSparseArray;
 import android.util.Slog;
+import android.util.Log;
 import android.util.SparseArray;
 import android.view.Display;
 import android.view.DisplayAddress;
@@ -47,6 +48,8 @@ import com.android.internal.util.function.pooled.PooledLambda;
 import com.android.server.LocalServices;
 import com.android.server.lights.LightsManager;
 import com.android.server.lights.LogicalLight;
+
+import vendor.samsung.hardware.sysinput.V1_1.ISehSysInputDev;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -226,6 +229,8 @@ final class LocalDisplayAdapter extends DisplayAdapter {
 
         private DisplayEventReceiver.FrameRateOverride[] mFrameRateOverrides =
                 new DisplayEventReceiver.FrameRateOverride[0];
+        private boolean triedSamsungHal = false;
+        private ISehSysInputDev samsungSysinput = null;
 
         LocalDisplayDevice(IBinder displayToken, long physicalDisplayId,
                 SurfaceControl.StaticDisplayInfo staticDisplayInfo,
@@ -815,16 +820,42 @@ final class LocalDisplayAdapter extends DisplayAdapter {
                             }
                             mSidekickActive = false;
                         }
+                        if (!triedSamsungHal) {
+                            triedSamsungHal = true;
+                            try {
+                                samsungSysinput = ISehSysInputDev.getService();
+                            } catch(Throwable t) {}
+                        }
                         final int mode = getPowerModeForState(state);
                         Trace.traceBegin(Trace.TRACE_TAG_POWER, "setDisplayState("
                                 + "id=" + physicalDisplayId
                                 + ", state=" + Display.stateToString(state) + ")");
+
+                        if (samsungSysinput != null) {
+                            try {
+                                Log.d("PHH", "setTspEnable 1, " + state + ", true");
+                                samsungSysinput.setTspEnable(1, state, true);
+                            } catch(Throwable t) {
+                                Log.d("PHH", "Failed settings tsp enable", t);
+                            }
+                        }
+
                         try {
                             mSurfaceControlProxy.setDisplayPowerMode(token, mode);
                             Trace.traceCounter(Trace.TRACE_TAG_POWER, "DisplayPowerMode", mode);
                         } finally {
                             Trace.traceEnd(Trace.TRACE_TAG_POWER);
                         }
+
+                        if (samsungSysinput != null) {
+                            try {
+                                Log.d("PHH", "setTspEnable 1, " + state + ", false");
+                                samsungSysinput.setTspEnable(1, state, false);
+                            } catch(Throwable t) {
+                                Log.d("PHH", "Failed settings tsp enable", t);
+                            }
+                        }
+
                         // If we're entering a suspended (but not OFF) power state and we
                         // have a sidekick available, tell it now that it can take control.
                         if (Display.isSuspendedState(state) && state != Display.STATE_OFF
