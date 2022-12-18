@@ -189,6 +189,11 @@ java_library_static {
         // HIDL
         "vendor.mediatek.hardware.mtkpower-V1.1-java",
         "vendor.samsung.hardware.sysinput-V1.2-java",
+        "vendor.goodix.hardware.biometrics.fingerprint-V2.1-java",
+        "vendor.samsung.hardware.biometrics.fingerprint-V3.0-java",
+        "vendor.oplus.hardware.biometrics.fingerprint-V2.1-java",
+        "vendor.oppo.hardware.biometrics.fingerprint-V2.1-java",
+        "vendor.xiaomi.hardware.fingerprintextension-V1.0-java",
     ],
     javac_shard_size: 50,
     javacflags: [
