@@ -873,7 +873,6 @@ public class FingerprintService extends SystemService {
 
             mRegistry.registerAll(() -> {
                 final List<ServiceProvider> providers = new ArrayList<>();
-                providers.addAll(getHidlProviders(hidlSensors));
                 List<String> aidlSensors = new ArrayList<>();
                 final String[] instances = mAidlInstanceNameSupplier.get();
                 if (instances != null) {
@@ -881,6 +880,9 @@ public class FingerprintService extends SystemService {
                 }
                 providers.addAll(getAidlProviders(
                         Utils.filterAvailableHalInstances(getContext(), aidlSensors)));
+                if (providers.isEmpty())
+                    providers.addAll(getHidlProviders(hidlSensors));
+
                 return providers;
             });
         }
@@ -907,6 +909,7 @@ public class FingerprintService extends SystemService {
         public void onPointerDown(long requestId, int sensorId, PointerContext pc) {
             super.onPointerDown_enforcePermission();
             final ServiceProvider provider = mRegistry.getProviderForSensor(sensorId);
+	    android.util.Log.e("PHH-Enroll", "FingerprintService onPointerDown");
             if (provider == null) {
                 Slog.w(TAG, "No matching provider for onFingerDown, sensorId: " + sensorId);
                 return;
@@ -1017,12 +1020,15 @@ public class FingerprintService extends SystemService {
         mLockoutResetDispatcher = new LockoutResetDispatcher(context);
         mLockPatternUtils = new LockPatternUtils(context);
         mBiometricStateCallback = new BiometricStateCallback<>(UserManager.get(context));
+        android.util.Log.e("PHH-Enroll", "Fingerprint service A");
         mFingerprintProvider = fingerprintProvider != null ? fingerprintProvider :
                 (name) -> {
                     final String fqName = IFingerprint.DESCRIPTOR + "/" + name;
                     final IFingerprint fp = IFingerprint.Stub.asInterface(
                             Binder.allowBlocking(ServiceManager.waitForDeclaredService(fqName)));
+        android.util.Log.e("PHH-Enroll", "Fingerprint service B");
                     if (fp != null) {
+        android.util.Log.e("PHH-Enroll", "Fingerprint service C");
                         try {
                             return new FingerprintProvider(getContext(),
                                     mBiometricStateCallback, fp.getSensorProps(), name,
