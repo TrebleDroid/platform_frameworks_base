@@ -873,7 +873,6 @@ public class FingerprintService extends SystemService {
 
             mRegistry.registerAll(() -> {
                 final List<ServiceProvider> providers = new ArrayList<>();
-                providers.addAll(getHidlProviders(hidlSensors));
                 List<String> aidlSensors = new ArrayList<>();
                 final String[] instances = mAidlInstanceNameSupplier.get();
                 if (instances != null) {
@@ -881,6 +880,8 @@ public class FingerprintService extends SystemService {
                 }
                 providers.addAll(getAidlProviders(
                         Utils.filterAvailableHalInstances(getContext(), aidlSensors)));
+                if (providers.isEmpty())
+                    providers.addAll(getHidlProviders(hidlSensors));
                 return providers;
             });
         }

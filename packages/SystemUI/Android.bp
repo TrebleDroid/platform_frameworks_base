@@ -197,6 +197,9 @@ android_library {
         "lottie",
         "LowLightDreamLib",
         "motion_tool_lib",
+        "vendor.goodix.hardware.biometrics.fingerprint-V2.1-java",
+        "vendor.xiaomi.hw.touchfeature-V1.0-java",
+        "vendor.xiaomi.hardware.fingerprintextension-V1.0-java"
     ],
     manifest: "AndroidManifest.xml",
 
