@@ -885,8 +885,9 @@ public class FingerprintService extends SystemService {
                         filteredInstances = filterAvailableHalInstances(hidlSensors, aidlSensors);
 
                 final List<ServiceProvider> providers = new ArrayList<>();
-                providers.addAll(getHidlProviders(filteredInstances.first));
                 providers.addAll(getAidlProviders(filteredInstances.second));
+                if (providers.isEmpty())
+                    providers.addAll(getHidlProviders(filteredInstances.first));
 
                 return providers;
             });
