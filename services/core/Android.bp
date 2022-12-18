@@ -173,7 +173,12 @@ java_library_static {
         "overlayable_policy_aidl-java",
         "SurfaceFlingerProperties",
         "com.android.sysprop.watchdog",
-        "vendor.samsung.hardware.sysinput-V1.2-java", // HIDL
+        // HIDL
+        "vendor.samsung.hardware.sysinput-V1.2-java",
+        "vendor.goodix.hardware.biometrics.fingerprint-V2.1-java",
+        "vendor.samsung.hardware.biometrics.fingerprint-V3.0-java",
+        "vendor.oplus.hardware.biometrics.fingerprint-V2.1-java",
+        "vendor.oppo.hardware.biometrics.fingerprint-V2.1-java",
     ],
     javac_shard_size: 50,
 }

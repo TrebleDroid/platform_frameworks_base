@@ -177,6 +177,7 @@ android_library {
         "lottie",
         "LowLightDreamLib",
         "motion_tool_lib",
+        "vendor.goodix.hardware.biometrics.fingerprint-V2.1-java",
     ],
     manifest: "AndroidManifest.xml",
 
