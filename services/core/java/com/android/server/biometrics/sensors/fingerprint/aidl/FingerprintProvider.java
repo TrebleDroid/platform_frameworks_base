@@ -36,6 +36,7 @@ import android.hardware.biometrics.SensorLocationInternal;
 import android.hardware.biometrics.fingerprint.IFingerprint;
 import android.hardware.biometrics.fingerprint.PointerContext;
 import android.hardware.biometrics.fingerprint.SensorProps;
+import android.hardware.biometrics.fingerprint.SensorLocation;
 import android.hardware.biometrics.fingerprint.virtualhal.IVirtualHal;
 import android.hardware.fingerprint.Fingerprint;
 import android.hardware.fingerprint.FingerprintAuthenticateOptions;
@@ -238,6 +239,7 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
             Slog.d(getTag(), "Adding AIDL configs");
             final List<SensorLocationInternal> workaroundLocations =
                     getWorkaroundSensorProps(mContext);
+            android.util.Log.e("PHH-Enroll", "Poping AIDL fp provider");
             for (SensorProps prop : props) {
                 addAidlSensors(prop, gestureAvailabilityDispatcher, workaroundLocations,
                         resetLockoutRequiresHardwareAuthToken);
@@ -271,6 +273,27 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
             @NonNull List<SensorLocationInternal> workaroundLocations,
             boolean resetLockoutRequiresHardwareAuthToken) {
         final int sensorId = prop.commonProps.sensorId;
+
+        android.util.Log.e("PHH-Enroll", "Got fp props -- pre");
+        for(SensorLocation loc: prop.sensorLocations) {
+            android.util.Log.e("PHH-Enroll", " - " + loc.sensorLocationX + ", " + loc.sensorLocationY + ", " +loc.sensorRadius + ", disp =" + loc.display + ", shape " + loc.sensorShape);
+        }
+        if (prop.sensorLocations.length == 1 && prop.sensorLocations[0].sensorLocationX == 0) {
+            int[] otherValues = com.android.server.biometrics.AuthService.dynamicUdfpsProps(mContext);
+            if (otherValues.length > 0) {
+                SensorLocation loc = new SensorLocation();
+                loc.sensorLocationX = otherValues[0];
+                loc.sensorLocationY = otherValues[1];
+                loc.sensorRadius = otherValues[2];
+                prop.sensorLocations[0] = loc;
+            }
+        }
+
+        android.util.Log.e("PHH-Enroll", "Got fp props -- post");
+        for(SensorLocation loc: prop.sensorLocations) {
+            android.util.Log.e("PHH-Enroll", " - " + loc.sensorLocationX + ", " + loc.sensorLocationY + ", " +loc.sensorRadius + ", disp =" + loc.display + ", shape " + loc.sensorShape);
+        }
+
         final Sensor sensor = new Sensor(this, mContext, mHandler, prop, mBiometricContext,
                 workaroundLocations, resetLockoutRequiresHardwareAuthToken);
         sensor.init(gestureAvailabilityDispatcher, mLockoutResetDispatcher);
