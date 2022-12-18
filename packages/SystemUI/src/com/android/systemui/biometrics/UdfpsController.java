@@ -43,6 +43,7 @@ import android.hardware.fingerprint.FingerprintSensorProperties;
 import android.hardware.fingerprint.FingerprintSensorPropertiesInternal;
 import android.hardware.fingerprint.IUdfpsOverlayController;
 import android.hardware.fingerprint.IUdfpsOverlayControllerCallback;
+import android.hardware.display.ColorDisplayManager;
 import android.hardware.input.InputManager;
 import android.os.Build;
 import android.os.CancellationSignal;
@@ -50,6 +51,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
 import android.os.Trace;
+import android.os.SystemProperties;
 import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.provider.Settings;
@@ -122,8 +124,12 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Executor;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 
 import javax.inject.Inject;
+import vendor.nubia.ifaa.V1_0.IIfaa;
 
 /**
  * Shows and hides the under-display fingerprint sensor (UDFPS) overlay, handles UDFPS touch events,
@@ -184,6 +190,8 @@ public class UdfpsController implements DozeReceiver, Dumpable {
     @NonNull private final CoroutineScope mScope;
     @NonNull private final InputManager mInputManager;
     @NonNull private final SelectedUserInteractor mSelectedUserInteractor;
+    @NonNull private final ColorDisplayManager mColorDisplayManager;
+    private boolean mIgnoreExtraDim;
     private final boolean mIgnoreRefreshRate;
     private final KeyguardTransitionInteractor mKeyguardTransitionInteractor;
 
@@ -254,6 +262,46 @@ public class UdfpsController implements DozeReceiver, Dumpable {
         @Override
         public void onScreenTurnedOff() {
             mScreenOn = false;
+        }
+    };
+    // Nubia 6 series fingerprint control command
+    // cmd = 13 -> finger down
+    // cmd = 14 -> after UI ready
+    // cmd = 15 -> finger up
+    public byte[] processCmd(int cmd, int param1, int param2, byte[] send_buf, int length) {
+        try {
+            if (cmd == 999) {
+                Log.d(TAG, "processCmd: 999");
+                return null;
+            }
+            ArrayList<Byte> sendList = new ArrayList<>();
+            if (send_buf != null) {
+                for (byte b : send_buf) {
+                    sendList.add(Byte.valueOf(b));
+                }
+            }
+            if (send_buf == null) {
+                Log.d(TAG, "FingerprintService send_buf = " + send_buf);
+            }
+            IIfaa iIfaaDaemon = IIfaa.getService();
+            if (iIfaaDaemon == null) {
+                Log.d(TAG, "processCmd: no iIfaaDaemon!");
+                return null;
+            }
+            ArrayList<Byte> resultList = iIfaaDaemon.processCmd(cmd, param1, param2, sendList, length);
+            int n = resultList.size();
+            Log.d(TAG, "FingerprintService result length n = " + n);
+            if (n == 0) {
+                return null;
+            }
+            byte[] result = new byte[n];
+            for (int i = 0; i < n; i++) {
+                result[i] = resultList.get(i).byteValue();
+            }
+            return result;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
     };
 
@@ -700,7 +748,8 @@ public class UdfpsController implements DozeReceiver, Dumpable {
             @NonNull UdfpsOverlayInteractor udfpsOverlayInteractor,
             @NonNull PowerInteractor powerInteractor,
             @Application CoroutineScope scope,
-            UserActivityNotifier userActivityNotifier) {
+            UserActivityNotifier userActivityNotifier,
+            @NonNull ColorDisplayManager colorDisplayManager) {
         mContext = context;
         mExecution = execution;
         mVibrator = vibrator;
@@ -747,6 +796,7 @@ public class UdfpsController implements DozeReceiver, Dumpable {
         mInputManager = inputManager;
         mSelectedUserInteractor = selectedUserInteractor;
         mKeyguardTransitionInteractor = keyguardTransitionInteractor;
+        mColorDisplayManager = colorDisplayManager;
 
         mTouchProcessor = singlePointerTouchProcessor;
         mSessionTracker = sessionTracker;
@@ -818,7 +868,10 @@ public class UdfpsController implements DozeReceiver, Dumpable {
             Log.d(TAG, "showUdfpsOverlay | the overlay is already showing");
             return;
         }
-
+        mIgnoreExtraDim = mColorDisplayManager.isReduceBrightColorsActivated();
+        if (mIgnoreExtraDim) {
+            Log.d(TAG, "Current extra dim state (showUdfpsOverlay): " + mIgnoreExtraDim);
+        }
         mOverlay = overlay;
         final int requestReason = overlay.getRequestReason();
         if (requestReason == REASON_AUTH_KEYGUARD
@@ -1047,6 +1100,10 @@ public class UdfpsController implements DozeReceiver, Dumpable {
             return;
         }
         if (isOptical()) {
+            if (mIgnoreExtraDim) {
+                mColorDisplayManager.setReduceBrightColorsActivated(false);
+                Log.d(TAG, "Extra dim disabled");
+            }
             mLatencyTracker.onActionStart(ACTION_UDFPS_ILLUMINATE);
         }
         // Refresh screen timeout and boost process priority if possible.
@@ -1076,12 +1133,19 @@ public class UdfpsController implements DozeReceiver, Dumpable {
                     mUdfpsDisplayMode.enable(() -> dispatchOnUiReady(requestId));
             }
         }
+        if(SystemProperties.get("ro.vendor.build.fingerprint").contains("nubia/NX669")) {
+          processCmd(13, 0, 0, new byte[0], 0);
+        }
 
         if (isOptical()) {
             for (Callback cb : mCallbacks) {
                 cb.onFingerDown();
             }
         }
+        if(SystemProperties.get("ro.vendor.build.fingerprint").contains("nubia/NX669")) {
+          processCmd(14, 0, 0, new byte[0], 0);
+        }
+
     }
 
     private void onFingerUp(long requestId, @NonNull View view) {
@@ -1115,8 +1179,16 @@ public class UdfpsController implements DozeReceiver, Dumpable {
         mActivePointerId = MotionEvent.INVALID_POINTER_ID;
         mAcquiredReceived = false;
         if (mOnFingerDown) {
+            if (mIgnoreExtraDim && isOptical()) {
+                mColorDisplayManager.setReduceBrightColorsActivated(true);
+                Log.d(TAG, "Extra dim restored");
+            }
             mFingerprintManager.onPointerUp(requestId, mSensorProps.sensorId, pointerId, x,
                     y, minor, major, orientation, time, gestureStart, isAod);
+            if(SystemProperties.get("ro.vendor.build.fingerprint").contains("nubia/NX669")) {
+                processCmd(15, 0, 0, new byte[0], 0);
+            }
+
             if (isOptical()) {
                 for (Callback cb : mCallbacks) {
                     cb.onFingerUp();
