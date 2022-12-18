@@ -122,6 +122,7 @@ android_library {
         "dagger2",
         "jsr330",
         "lottie",
+        "vendor.goodix.hardware.biometrics.fingerprint-V2.1-java",
     ],
     manifest: "AndroidManifest.xml",
 

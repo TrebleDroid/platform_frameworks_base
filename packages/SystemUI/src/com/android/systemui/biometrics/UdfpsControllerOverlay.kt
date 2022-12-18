@@ -103,7 +103,10 @@ class UdfpsControllerOverlay(
         gravity = android.view.Gravity.TOP or android.view.Gravity.LEFT
         layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         flags =
-            (Utils.FINGERPRINT_OVERLAY_LAYOUT_PARAM_FLAGS or WindowManager.LayoutParams.FLAG_SPLIT_TOUCH)
+            Utils.FINGERPRINT_OVERLAY_LAYOUT_PARAM_FLAGS or
+            WindowManager.LayoutParams.FLAG_SPLIT_TOUCH or
+            WindowManager.LayoutParams.FLAG_DIM_BEHIND
+        dimAmount = 0.0f
         privateFlags = WindowManager.LayoutParams.PRIVATE_FLAG_TRUSTED_OVERLAY
         // Avoid announcing window title.
         accessibilityTitle = " "
@@ -155,6 +158,9 @@ class UdfpsControllerOverlay(
 
                     windowManager.addView(this, coreLayoutParams.updateDimensions(animation))
                     touchExplorationEnabled = accessibilityManager.isTouchExplorationEnabled
+                    dimUpdate = {
+                        windowManager.updateViewLayout(this, coreLayoutParams.updateDimensions(animation).apply { dimAmount = it })
+                    }
                     overlayTouchListener = TouchExplorationStateChangeListener {
                         if (accessibilityManager.isTouchExplorationEnabled) {
                             setOnHoverListener { v, event -> onTouch(v, event, true) }

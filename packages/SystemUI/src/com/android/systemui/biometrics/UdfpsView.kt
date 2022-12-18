@@ -19,16 +19,25 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.PixelFormat
 import android.graphics.PointF
 import android.graphics.RectF
+import android.os.FileObserver
 import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
+import android.view.SurfaceHolder
+import android.view.SurfaceView
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import com.android.systemui.R
 import com.android.systemui.doze.DozeReceiver
+import java.io.File
+
+import vendor.goodix.hardware.biometrics.fingerprint.V2_1.IGoodixFingerprintDaemon
 
 private const val TAG = "UdfpsView"
+
 
 /**
  * The main view group containing all UDFPS animations.
@@ -37,6 +46,54 @@ class UdfpsView(
     context: Context,
     attrs: AttributeSet?
 ) : FrameLayout(context, attrs), DozeReceiver, UdfpsIlluminator {
+    private var currentOnIlluminatedRunnable: Runnable? = null
+    private val mySurfaceView = SurfaceView(context)
+    init {
+        mySurfaceView.setVisibility(INVISIBLE)
+        mySurfaceView.setZOrderOnTop(true)
+        addView(mySurfaceView, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        mySurfaceView.holder.addCallback(object: SurfaceHolder.Callback{
+            override fun surfaceCreated(p0: SurfaceHolder) {
+                Log.d("PHH", "Surface created!")
+                val paint = Paint(0 /* flags */);
+                paint.setAntiAlias(true);
+                paint.setStyle(Paint.Style.FILL);
+                val colorStr = android.os.SystemProperties.get("persist.sys.phh.fod_color", "00ff00");
+                try {
+                    val parsedColor = Color.parseColor("#" + colorStr);
+                    val r = (parsedColor shr 16) and 0xff;
+                    val g = (parsedColor shr  8) and 0xff;
+                    val b = (parsedColor shr  0) and 0xff;
+                    paint.setARGB(255, r, g, b);
+                } catch(t: Throwable) {
+                    Log.d("PHH", "Failed parsing color #" + colorStr, t);
+                }
+                var canvas: Canvas? = null
+                try {
+                    canvas = p0.lockCanvas();
+Log.d("PHH", "Surface dimensions ${canvas.getWidth()*1.0f} ${canvas.getHeight()*1.0f}")
+                    canvas.drawOval(RectF(0.0f, 0.0f, canvas.getWidth()*1.0f, canvas.getHeight()*1.0f), paint);
+                } finally {
+                    // Make sure the surface is never left in a bad state.
+                    if (canvas != null) {
+                        p0.unlockCanvasAndPost(canvas);
+                    }
+                }
+
+                currentOnIlluminatedRunnable?.run()
+            }
+
+            override fun surfaceChanged(p0: SurfaceHolder, p1: Int, p2: Int, p3: Int) {
+Log.d("PHH", "Got surface size $p1 $p2 $p3")
+            }
+
+            override fun surfaceDestroyed(p0: SurfaceHolder) {
+Log.d("PHH", "Surface destroyed!")
+            }
+        })
+        mySurfaceView.holder.setFormat(PixelFormat.RGBA_8888)
+
+    }
 
     // sensorRect may be bigger than the sensor. True sensor dimensions are defined in
     // overlayParams.sensorBounds
@@ -65,6 +122,8 @@ class UdfpsView(
 
     /** Parameters that affect the position and size of the overlay. */
     var overlayParams = UdfpsOverlayParams()
+
+    var dimUpdate: (Float) -> Unit = {}
 
     /** Whether the HAL is responsible for enabling and disabling of LHBM. */
     var halControlsIllumination: Boolean = true
@@ -147,16 +206,52 @@ class UdfpsView(
             !(animationViewController?.shouldPauseAuth() ?: false)
     }
 
+    fun goodixCmd(id: Int) {
+        val goodixSvc = IGoodixFingerprintDaemon.getService()
+        if(goodixSvc != null) {
+            goodixSvc.sendCommand(id, ArrayList(), { returnCode, resultData -> {
+                Log.e("PHH-Enroll", "Goodix send command returned code "+ returnCode);
+            }});
+        }
+    }
+
     /**
      * Start and run [onIlluminatedRunnable] when the first illumination frame reaches the panel.
      */
+    val asusGhbmOnAchieved = "/sys/class/drm/ghbm_on_achieved"
+    var hasAsusGhbm = File(asusGhbmOnAchieved).exists()
+    var samsungActualMaskBrightness = "/sys/class/lcd/panel/actual_mask_brightness"
+    val hasSamsungMask = File(samsungActualMaskBrightness).exists()
+    var fodFileObserver: FileObserver? = null
+
     override fun startIllumination(onIlluminatedRunnable: Runnable?) {
         isIlluminationRequested = true
         animationViewController?.onIlluminationStarting()
         doIlluminate(onIlluminatedRunnable)
+
+        mySurfaceView.setVisibility(VISIBLE)
+        Log.d("PHH", "setting surface visible!")
+
+        val brightness = File("/sys/class/backlight/panel0-backlight/brightness").readText().toDouble()
+        val maxBrightness = File("/sys/class/backlight/panel0-backlight/max_brightness").readText().toDouble()
+
+        // Assume HBM is max brightness
+        val dim = 1.0 - Math.pow( (brightness / maxBrightness), 1/2.3);
+        Log.d("PHH-Enroll", "Brightness is $brightness / $maxBrightness, setting dim to $dim")
+        if (hasAsusGhbm) {
+            dimUpdate(dim.toFloat())
+        }
+        if (hasSamsungMask) {
+            dimUpdate(dim.toFloat())
+        }
+
+        if(android.os.SystemProperties.get("ro.vendor.build.fingerprint").contains("ASUS")) {
+            goodixCmd(200001)
+        }
     }
 
     private fun doIlluminate(onIlluminatedRunnable: Runnable?) {
+        currentOnIlluminatedRunnable = onIlluminatedRunnable
         // TODO(b/231335067): enableHbm with halControlsIllumination=true shouldn't make sense.
         // This only makes sense now because vendor code may rely on the side effects of enableHbm.
         hbmProvider?.enableHbm(halControlsIllumination) {
@@ -175,6 +270,50 @@ class UdfpsView(
     }
 
     override fun stopIllumination() {
+        if (hasAsusGhbm) {
+            fodFileObserver = object: FileObserver(asusGhbmOnAchieved, FileObserver.MODIFY) {
+                override fun onEvent(event: Int, path: String): Unit {
+                    Log.d("PHH-Enroll", "Asus ghbm event")
+                    try {
+                        val spotOn = File(asusGhbmOnAchieved).readText().toInt()
+                        if(spotOn == 0) {
+                            dimUpdate(0.0f)
+                            fodFileObserver?.stopWatching()
+                            fodFileObserver = null
+                        }
+                    } catch(e: Exception) {
+                        Log.d("PHH-Enroll", "Failed dimpdate off", e)
+                    }
+                }
+            };
+            fodFileObserver?.startWatching();
+        } else if (hasSamsungMask) {
+            fodFileObserver = object: FileObserver(asusGhbmOnAchieved, FileObserver.MODIFY) {
+                override fun onEvent(event: Int, path: String): Unit {
+                    Log.d("PHH-Enroll", "samsung mask brightness event")
+                    try {
+                        val spotOn = File(samsungActualMaskBrightness).readText().toInt()
+                        if(spotOn == 0) {
+                            dimUpdate(0.0f)
+                            fodFileObserver?.stopWatching()
+                            fodFileObserver = null
+                        }
+                    } catch(e: Exception) {
+                        Log.d("PHH-Enroll", "Failed dimpdate off", e)
+                    }
+                }
+            };
+            fodFileObserver?.startWatching();
+        } else {
+            dimUpdate(0.0f)
+        }
+
+        mySurfaceView.setVisibility(INVISIBLE)
+        Log.d("PHH", "setting surface invisible!")
+        if(android.os.SystemProperties.get("ro.vendor.build.fingerprint").contains("ASUS")) {
+            goodixCmd(200003)
+        }
+        currentOnIlluminatedRunnable = null
         isIlluminationRequested = false
         animationViewController?.onIlluminationStopped()
         hbmProvider?.disableHbm(null /* onHbmDisabled */)
