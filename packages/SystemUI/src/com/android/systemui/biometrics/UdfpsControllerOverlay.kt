@@ -171,7 +171,9 @@ constructor(
                     WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
                 flags =
                     (Utils.FINGERPRINT_OVERLAY_LAYOUT_PARAM_FLAGS or
-                        WindowManager.LayoutParams.FLAG_SPLIT_TOUCH)
+                        WindowManager.LayoutParams.FLAG_SPLIT_TOUCH) or
+                        WindowManager.LayoutParams.FLAG_DIM_BEHIND
+                dimAmount = 0.0f
                 privateFlags =
                     WindowManager.LayoutParams.PRIVATE_FLAG_TRUSTED_OVERLAY or
                         WindowManager.LayoutParams.PRIVATE_FLAG_EXCLUDE_FROM_SCREEN_MAGNIFICATION
@@ -257,6 +259,9 @@ constructor(
 
                             addViewNowOrLater(this, animation)
                             sensorRect = sensorBounds
+                            dimUpdate = {
+                                windowManager.updateViewLayout(this, coreLayoutParams.updateDimensions(animation).apply { dimAmount = it })
+                            }
                         }
                 }
                 getTouchOverlay()?.apply {

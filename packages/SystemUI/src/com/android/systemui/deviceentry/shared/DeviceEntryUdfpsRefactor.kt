@@ -33,7 +33,7 @@ object DeviceEntryUdfpsRefactor {
     /** Is the refactor enabled */
     @JvmStatic
     inline val isEnabled
-        get() = Flags.deviceEntryUdfpsRefactor()
+        get() = false //Flags.deviceEntryUdfpsRefactor()
 
     /**
      * Called to ensure code is only run when the flag is enabled. This protects users from the
