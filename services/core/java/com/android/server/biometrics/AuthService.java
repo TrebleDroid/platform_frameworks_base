@@ -75,6 +75,22 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import android.hardware.display.DisplayManager;
+
+import android.graphics.Point;
+import android.util.DisplayMetrics;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.PrintWriter;
+
+import android.os.FileObserver;
+import android.os.Build;
+
+import vendor.samsung.hardware.biometrics.fingerprint.V3_0.ISehBiometricsFingerprint;
+import vendor.goodix.hardware.biometrics.fingerprint.V2_1.IGoodixFingerprintDaemon;
+import vendor.samsung.hardware.sysinput.V1_0.ISehSysInputDev;
+
 /**
  * System service that provides an interface for authenticating with biometrics and
  * PIN/pattern/password to BiometricPrompt and lock screen.
@@ -92,6 +108,9 @@ public class AuthService extends SystemService {
     private IBiometricService mBiometricService;
     @VisibleForTesting
     final IAuthService.Stub mImpl;
+
+    private FileObserver fodFileObserver = null;
+    private ISehBiometricsFingerprint mSamsungFingerprint = null;
 
     /**
      * Class for injecting dependencies into AuthService.
@@ -650,6 +669,72 @@ public class AuthService extends SystemService {
         registerAuthenticators(hidlConfigs);
 
         mInjector.publishBinderService(this, mImpl);
+        try {
+            mSamsungFingerprint = ISehBiometricsFingerprint.getService();
+            android.util.Log.e("PHH", "Got samsung fingerprint HAL");
+        } catch(Exception e) {
+            android.util.Log.e("PHH", "Failed getting Samsung fingerprint HAL", e);
+        }
+        if(samsungHasCmd("fod_enable") && mSamsungFingerprint != null) {
+            samsungCmd("fod_enable,1,1,0");
+            String actualMaskBrightnessPath = "/sys/class/lcd/panel/actual_mask_brightness";
+            android.util.Log.e("PHH-Enroll", "Reading actual brightness file gives " + readFile(actualMaskBrightnessPath));
+            fodFileObserver = new FileObserver(actualMaskBrightnessPath, FileObserver.MODIFY) {
+                @Override
+                public void onEvent(int event, String path) {
+                    String actualMask = readFile(actualMaskBrightnessPath);
+                    try {
+                        mSamsungFingerprint = ISehBiometricsFingerprint.getService();
+                    } catch(Exception e) {}
+                    Slog.d("PHH-Enroll", "New actual mask brightness is " + actualMask);
+                    try {
+                        int eventReq = 0;
+                        if("0".equals(actualMask)) {
+                            eventReq = 1; //released
+                        } else {
+                            eventReq = 2; //pressed
+                        }
+                        if(mSamsungFingerprint != null) {
+                            mSamsungFingerprint.sehRequest(22 /* SEM_FINGER_STATE */, eventReq, new java.util.ArrayList<Byte>(),
+                                    (int retval, java.util.ArrayList<Byte> out) -> {} );
+                        }
+                    } catch(Exception e) {
+                        Slog.d("PHH-Enroll", "Failed setting samsung event for mask observer", e);
+                    }
+                }
+            };
+            fodFileObserver.startWatching();
+        }
+
+        String asusGhbmOnAchieved = "/sys/class/drm/ghbm_on_achieved";
+        if( (new File(asusGhbmOnAchieved)).exists()) {
+            fodFileObserver = new FileObserver(asusGhbmOnAchieved, FileObserver.MODIFY) {
+                boolean wasOn = false;
+                @Override
+                public void onEvent(int event, String path) {
+                    String spotOn = readFile(asusGhbmOnAchieved);
+                    if("1".equals(spotOn)) {
+                        if(!wasOn) {
+                            try {
+                                IGoodixFingerprintDaemon goodixDaemon = IGoodixFingerprintDaemon.getService();
+
+                                //Send UI ready
+                                goodixDaemon.sendCommand(200002, new java.util.ArrayList<Byte>(), (returnCode, resultData) -> {
+                                    Slog.e(TAG, "Goodix send command touch pressed returned code "+ returnCode);
+                                });
+                            } catch(Throwable t) {
+                                Slog.d("PHH-Enroll", "Failed sending goodix command", t);
+                            }
+                        }
+                        wasOn = true;
+                    } else {
+                        wasOn = false;
+                    }
+                }
+            };
+            fodFileObserver.startWatching();
+        }
+
     }
 
     /**
@@ -773,14 +858,100 @@ public class AuthService extends SystemService {
                 ? modality : (modality & ~BiometricAuthenticator.TYPE_CREDENTIAL);
     }
 
+    private int[] dynamicUdfpsProps() {
+        DisplayManager mDM = (DisplayManager) getContext().getSystemService(Context.DISPLAY_SERVICE);
+        Point displayRealSize = new Point();
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        mDM.getDisplay(0).getRealSize(displayRealSize);
+        mDM.getDisplay(0).getMetrics(displayMetrics);
+
+        if(readFile("/sys/class/fingerprint/fingerprint/position") != null) {
+            try {
+            ISehSysInputDev s = ISehSysInputDev.getService();
+            s.getTspFodInformation(0, (a, b) -> {
+                Slog.d("PHH-Enroll", "TspFod info " + a + ", " + b);
+            });
+            s.getTspFodPosition(0, (a, b) -> {
+                Slog.d("PHH-Enroll", "TspFod info " + a + ", " + b);
+            });
+            }catch(Throwable t) {
+                Slog.d("PHH-Enroll", "heya ", t);
+            }
+
+
+            android.util.Log.d("PHH", "Samsung fingerprint");
+            String[] fodPositionArray = readFile("/sys/class/fingerprint/fingerprint/position").split(",");
+            float bottomMM = Float.parseFloat(fodPositionArray[0]);
+            float areaSizeMM = Float.parseFloat(fodPositionArray[5]);
+            float heightMM = Float.parseFloat(fodPositionArray[2]);
+            float bottomInch = bottomMM * 0.0393700787f;
+            float areaSizeInch = areaSizeMM * 0.0393700787f;
+            float heightInch = heightMM * 0.0393700787f;
+            int bottomPx = (int)(bottomInch * displayMetrics.ydpi);
+            int areaSizePx = (int)(areaSizeInch * displayMetrics.ydpi);
+            int midDistPx = (int)(areaSizeInch * displayMetrics.ydpi / 2.0f);
+
+            float mW = areaSizePx/2;
+            float mH = areaSizePx/2;
+            float mX = displayRealSize.x/2;
+            //float mY = displayRealSize.y - bottomPx - midDistPx;
+            float mY = displayRealSize.y - (bottomInch * displayMetrics.ydpi) - (areaSizeInch * displayMetrics.ydpi / 2.0f);
+
+            samsungCmd(String.format("fod_rect,%d,%d,%d,%d", (int)(mX - mW/2), (int)(mY - mW/2), (int)(mX + mW/2), (int)(mY + mW/2)));
+            Slog.d("PHH-Enroll", "Display real size is " + displayRealSize.y + ", dpy " + displayMetrics.ydpi);
+
+            int udfpsProps[] = new int[3];
+            udfpsProps[0] = (int)mX;
+            udfpsProps[1] = (int)mY;
+            udfpsProps[2] = (int)mW;
+
+            try {
+                mSamsungFingerprint = ISehBiometricsFingerprint.getService();
+                Slog.d("PHH-Enroll", "Samsung ask for sensor status");
+                mSamsungFingerprint.sehRequest(6, 0, new java.util.ArrayList(), (int retval, java.util.ArrayList<Byte> out) -> {
+                    Slog.d("PHH-Enroll", "Result is " + retval);
+                    for(int i=0; i<out.size(); i++) {
+                        Slog.d("PHH-Enroll", "\t" + i + ":" + out.get(i));
+                    }
+                } );
+                Slog.d("PHH-Enroll", "Samsung ask for sensor brightness value");
+                mSamsungFingerprint.sehRequest(32, 0, new java.util.ArrayList(), (int retval, java.util.ArrayList<Byte> out) -> {
+                    Slog.d("PHH-Enroll", "Result is " + retval);
+                    for(int i=0; i<out.size(); i++) {
+                        Slog.d("PHH-Enroll", "\t" + i + ":" + out.get(i));
+                    }
+                } );
+
+            } catch(Exception e) {
+                Slog.d("PHH-Enroll", "Failed setting samsung3.0 fingerprint recognition", e);
+            }
+            return udfpsProps;
+        }
+
+        if(android.os.SystemProperties.get("ro.vendor.build.fingerprint").contains("ASUS_I006D")) {
+            int udfpsProps[] = new int[3];
+            udfpsProps[0] = displayRealSize.x/2;
+            udfpsProps[1] = 1741;
+            udfpsProps[2] = 110;
+            return udfpsProps;
+        }
+
+        return new int[0];
+    }
 
     private FingerprintSensorPropertiesInternal getHidlFingerprintSensorProps(int sensorId,
             @BiometricManager.Authenticators.Types int strength) {
         // The existence of config_udfps_sensor_props indicates that the sensor is UDFPS.
-        final int[] udfpsProps = getContext().getResources().getIntArray(
+        int[] udfpsProps = getContext().getResources().getIntArray(
                 com.android.internal.R.array.config_udfps_sensor_props);
 
-        final boolean isUdfps = !ArrayUtils.isEmpty(udfpsProps);
+        boolean isUdfps = !ArrayUtils.isEmpty(udfpsProps);
+        if(!isUdfps) udfpsProps = dynamicUdfpsProps();
+        isUdfps = !ArrayUtils.isEmpty(udfpsProps);
+
+        if(udfpsProps.length > 0) {
+            Slog.d("PHH-Enroll", "Got udfps infos " + udfpsProps[0] + ", " + udfpsProps[1] + ", " + udfpsProps[2]);
+        }
 
         // config_is_powerbutton_fps indicates whether device has a power button fingerprint sensor.
         final boolean isPowerbuttonFps = getContext().getResources().getBoolean(
@@ -841,5 +1012,68 @@ public class AuthService extends SystemService {
                 Utils.authenticatorStrengthToPropertyStrength(strength), maxEnrollmentsPerUser,
                 componentInfo, resetLockoutRequiresHardwareAuthToken,
                 resetLockoutRequiresChallenge);
+    }
+
+    private static boolean samsungHasCmd(String cmd) {
+        try {
+            File f = new File("/sys/devices/virtual/sec/tsp/cmd_list");
+            if(!f.exists()) return false;
+
+            android.util.Log.d("PHH", "Managed to grab cmd list, checking...");
+            BufferedReader b = new BufferedReader(new FileReader(f));
+            String line = null;
+            while( (line = b.readLine()) != null) {
+                if(line.equals(cmd)) return true;
+            }
+            android.util.Log.d("PHH", "... nope");
+            return false;
+        } catch(Exception e) {
+            android.util.Log.d("PHH", "Failed reading cmd_list", e);
+            return false;
+        }
+    }
+
+    public static void samsungCmd(String cmd) {
+        try {
+            writeFile("/sys/devices/virtual/sec/tsp/cmd", cmd);
+
+            String status = readFile("/sys/devices/virtual/sec/tsp/cmd_status");
+            String ret = readFile("/sys/devices/virtual/sec/tsp/cmd_result");
+
+            android.util.Log.d("PHH", "Sending command " + cmd + " returned " + ret + ":" + status);
+        } catch(Exception e) {
+            android.util.Log.d("PHH", "Failed sending command " + cmd, e);
+        }
+    }
+
+    private static void writeFile(String path, String value) {
+        try {
+            PrintWriter writer = new PrintWriter(path, "UTF-8");
+            writer.println(value);
+            writer.close();
+        } catch(Exception e) {
+            android.util.Log.d("PHH", "Failed writing to " + path + ": " + value);
+        }
+    }
+
+    private static void writeFile(File file, String value) {
+        try {
+            PrintWriter writer = new PrintWriter(file, "UTF-8");
+            writer.println(value);
+            writer.close();
+        } catch(Exception e) {
+            android.util.Log.d("PHH", "Failed writing to " + file + ": " + value);
+        }
+    }
+
+    private static String readFile(String path) {
+        try {
+            File f = new File(path);
+
+            BufferedReader b = new BufferedReader(new FileReader(f));
+            return b.readLine();
+        } catch(Exception e) {
+            return null;
+        }
     }
 }
