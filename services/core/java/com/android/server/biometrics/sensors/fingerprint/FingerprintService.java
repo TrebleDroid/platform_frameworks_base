@@ -905,8 +905,9 @@ public class FingerprintService extends SystemService {
             final Handler handler = new Handler(thread.getLooper());
 
             handler.post(() -> {
-                addHidlProviders(hidlSensors);
                 addAidlProviders();
+                if(mServiceProviders.isEmpty())
+                    addHidlProviders(hidlSensors);
 
                 final IBiometricService biometricService = IBiometricService.Stub.asInterface(
                         ServiceManager.getService(Context.BIOMETRIC_SERVICE));

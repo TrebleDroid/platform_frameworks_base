@@ -650,11 +650,11 @@ public class AuthService extends SystemService {
             final int firstApiLevel = SystemProperties.getInt(SYSPROP_FIRST_API_LEVEL, 0);
             final int apiLevel = SystemProperties.getInt(SYSPROP_API_LEVEL, firstApiLevel);
             String[] configStrings = mInjector.getConfiguration(getContext());
-            if (configStrings.length == 0 && apiLevel <= Build.VERSION_CODES.R) {
+            if (configStrings.length == 0) {
                 // For backwards compatibility with R where biometrics could work without being
                 // configured in config_biometric_sensors. In the absence of a vendor provided
                 // configuration, we assume the weakest biometric strength (i.e. convenience).
-                Slog.w(TAG, "Found R vendor partition without config_biometric_sensors");
+                Slog.w(TAG, "Found vendor partition without config_biometric_sensors");
                 configStrings = generateRSdkCompatibleConfiguration();
             }
             hidlConfigs = new SensorConfig[configStrings.length];
