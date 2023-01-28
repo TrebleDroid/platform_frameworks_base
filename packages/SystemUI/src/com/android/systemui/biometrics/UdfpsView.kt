@@ -232,8 +232,19 @@ Log.d("PHH", "Surface destroyed!")
         mySurfaceView.setVisibility(VISIBLE)
         Log.d("PHH", "setting surface visible!")
 
-        val brightness = File("/sys/class/backlight/panel0-backlight/brightness").readText().toDouble()
-        val maxBrightness = File("/sys/class/backlight/panel0-backlight/max_brightness").readText().toDouble()
+        val brightnessFile = File("/sys/class/backlight/panel/brightness")
+        val maxBrightnessFile = File("/sys/class/backlight/panel/max_brightness")
+
+        var brightness: Double = 0.0
+        var maxBrightness: Double = 0.0
+
+        if (brightnessFile.exists() && maxBrightnessFile.exists()) {
+            brightness = brightnessFile.readText().toDouble()
+            maxBrightness = maxBrightnessFile.readText().toDouble()
+        } else {
+            brightness = File("/sys/class/backlight/panel0-backlight/brightness").readText().toDouble()
+            maxBrightness = File("/sys/class/backlight/panel0-backlight/max_brightness").readText().toDouble()
+        }
 
         // Assume HBM is max brightness
         val dim = 1.0 - Math.pow( (brightness / maxBrightness), 1/2.3);
