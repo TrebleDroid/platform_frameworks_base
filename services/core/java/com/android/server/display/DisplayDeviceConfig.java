@@ -1650,37 +1650,43 @@ public class DisplayDeviceConfig {
             return;
         }
 
-        // Use the (preferred) display device config mapping
-        final List<Point> points = map.getPoint();
-        final int size = points.size();
+        try {
+            // Use the (preferred) display device config mapping
+            final List<Point> points = map.getPoint();
+            final int size = points.size();
 
-        float[] nits = new float[size];
-        float[] backlight = new float[size];
+            float[] nits = new float[size];
+            float[] backlight = new float[size];
 
-        mInterpolationType = convertInterpolationType(map.getInterpolation());
-        int i = 0;
-        for (Point point : points) {
-            nits[i] = point.getNits().floatValue();
-            backlight[i] = point.getValue().floatValue();
-            if (i > 0) {
-                if (nits[i] < nits[i - 1]) {
-                    Slog.e(TAG, "screenBrightnessMap must be non-decreasing, ignoring rest "
-                            + " of configuration. Nits: " + nits[i] + " < " + nits[i - 1]);
-                    return;
+            mInterpolationType = convertInterpolationType(map.getInterpolation());
+            int i = 0;
+            for (Point point : points) {
+                nits[i] = point.getNits().floatValue();
+                backlight[i] = point.getValue().floatValue();
+                if (i > 0) {
+                    if (nits[i] < nits[i - 1]) {
+                        Slog.e(TAG, "screenBrightnessMap must be non-decreasing, ignoring rest "
+                                + " of configuration. Nits: " + nits[i] + " < " + nits[i - 1]);
+                        return;
+                    }
+
+                    if (backlight[i] < backlight[i - 1]) {
+                        Slog.e(TAG, "screenBrightnessMap must be non-decreasing, ignoring rest "
+                                + " of configuration. Value: " + backlight[i] + " < "
+                                + backlight[i - 1]);
+                        return;
+                    }
                 }
-
-                if (backlight[i] < backlight[i - 1]) {
-                    Slog.e(TAG, "screenBrightnessMap must be non-decreasing, ignoring rest "
-                            + " of configuration. Value: " + backlight[i] + " < "
-                            + backlight[i - 1]);
-                    return;
-                }
+                ++i;
             }
-            ++i;
+            mRawNits = nits;
+            mRawBacklight = backlight;
+            constrainNitsAndBacklightArrays();
+        } catch(Throwable t) {
+            mRawNits = null;
+            mRawBacklight = null;
+            setSimpleMappingStrategyValues();
         }
-        mRawNits = nits;
-        mRawBacklight = backlight;
-        constrainNitsAndBacklightArrays();
     }
 
     private Spline loadSdrHdrRatioMap(HighBrightnessMode hbmConfig) {
