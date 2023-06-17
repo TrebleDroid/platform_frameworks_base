@@ -174,6 +174,7 @@ java_library_static {
         "SurfaceFlingerProperties",
         "com.android.sysprop.watchdog",
         // HIDL
+        "vendor.mediatek.hardware.mtkpower-V1.1-java",
         "vendor.samsung.hardware.sysinput-V1.2-java",
         "vendor.goodix.hardware.biometrics.fingerprint-V2.1-java",
         "vendor.samsung.hardware.biometrics.fingerprint-V3.0-java",
