@@ -926,6 +926,9 @@ public class SystemConfig {
                     case "unavailable-feature":
                         readUnavailableFeature(parser, permFile, allowFeatures, name);
                         break;
+                    case "unavailable-feature-conditional":
+                        readUnavailableFeatureConditional(parser, permFile, allowFeatures, name);
+                        break;
                     case "allow-in-power-save-except-idle":
                         readAllowInPowerSaveExceptIdle(
                                 parser, permFile, allowOverrideAppRestrictions, name);
@@ -1258,6 +1261,27 @@ public class SystemConfig {
             }
             else {
                 mUnavailableFeatures.add(fname);
+            }
+        } else {
+            logNotAllowedInPartition(name, permFile, parser);
+        }
+        XmlUtils.skipCurrentTag(parser);
+    }
+
+    private void readUnavailableFeatureConditional(XmlPullParser parser, File permFile,
+            boolean allowFeatures, String name) throws IOException, XmlPullParserException {
+        if (allowFeatures) {
+            String fname = parser.getAttributeValue(null, "name");
+            String prop = parser.getAttributeValue(null, "prop");
+            if (fname == null || prop == null) {
+                Slog.w(TAG, "<" + name + "> without name in " + permFile
+                        + " at " + parser.getPositionDescription());
+            } else {
+                if(android.os.SystemProperties.getBoolean(prop, false)) {
+                    addFeature(fname, 0);
+                } else {
+                    mUnavailableFeatures.add(fname);
+                }
             }
         } else {
             logNotAllowedInPartition(name, permFile, parser);
