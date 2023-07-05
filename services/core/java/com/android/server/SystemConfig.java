@@ -939,6 +939,25 @@ public class SystemConfig {
                         }
                         XmlUtils.skipCurrentTag(parser);
                     } break;
+                    case "unavailable-feature-conditional": {
+                        if (allowFeatures) {
+                            String fname = parser.getAttributeValue(null, "name");
+                            String prop = parser.getAttributeValue(null, "prop");
+                            if (fname == null || prop == null) {
+                                Slog.w(TAG, "<" + name + "> without name in " + permFile
+                                        + " at " + parser.getPositionDescription());
+                            } else {
+                                if(android.os.SystemProperties.getBoolean(prop, false)) {
+                                    addFeature(fname, 0);
+                                } else {
+                                    mUnavailableFeatures.add(fname);
+                                }
+                            }
+                        } else {
+                            logNotAllowedInPartition(name, permFile, parser);
+                        }
+                        XmlUtils.skipCurrentTag(parser);
+                    } break;
                     case "allow-in-power-save-except-idle": {
                         if (allowOverrideAppRestrictions) {
                             String pkgname = parser.getAttributeValue(null, "package");
