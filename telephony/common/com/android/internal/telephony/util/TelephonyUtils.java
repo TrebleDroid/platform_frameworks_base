@@ -42,7 +42,9 @@ import com.android.internal.telephony.ITelephony;
 import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -149,6 +151,34 @@ public final class TelephonyUtils {
         } finally {
             Binder.restoreCallingIdentity(callingIdentity);
         }
+    }
+
+    /**
+     * Convenience method for running the provided action in the provided
+     * executor enclosed in
+     * {@link Binder#clearCallingIdentity}/{@link Binder#restoreCallingIdentity} and return
+     * the result.
+     *
+     * Any exception thrown by the given action will need to be handled by caller.
+     *
+     */
+    public static <T> T runWithCleanCallingIdentity(
+            @NonNull Supplier<T> action, @NonNull Executor executor) {
+        if (action != null) {
+            if (executor != null) {
+                try {
+                    return CompletableFuture.supplyAsync(
+                            () -> runWithCleanCallingIdentity(action), executor).get();
+                } catch (ExecutionException | InterruptedException e) {
+                    Log.w(LOG_TAG, "TelephonyUtils : runWithCleanCallingIdentity exception: "
+                            + e.getMessage());
+                    return null;
+                }
+            } else {
+                return runWithCleanCallingIdentity(action);
+            }
+        }
+        return null;
     }
 
     /**
