@@ -64,6 +64,7 @@ import android.os.ServiceManager;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.provider.Settings;
+import android.text.TextUtils;
 import android.util.Slog;
 
 import com.android.internal.R;
@@ -91,6 +92,7 @@ import vendor.samsung.hardware.biometrics.fingerprint.V3_0.ISehBiometricsFingerp
 import vendor.goodix.hardware.biometrics.fingerprint.V2_1.IGoodixFingerprintDaemon;
 import vendor.samsung.hardware.sysinput.V1_0.ISehSysInputDev;
 
+import vendor.xiaomi.hardware.fingerprintextension.V1_0.IXiaomiFingerprint;
 /**
  * System service that provides an interface for authenticating with biometrics and
  * PIN/pattern/password to BiometricPrompt and lock screen.
@@ -112,6 +114,7 @@ public class AuthService extends SystemService {
     private FileObserver fodFileObserver = null;
     private ISehBiometricsFingerprint mSamsungFingerprint = null;
 
+    private IXiaomiFingerprint mXiaomiFingerprint = null;
     /**
      * Class for injecting dependencies into AuthService.
      * TODO(b/141025588): Replace with a dependency injection framework (e.g. Guice, Dagger).
@@ -675,6 +678,12 @@ public class AuthService extends SystemService {
         } catch(Exception e) {
             android.util.Log.e("PHH", "Failed getting Samsung fingerprint HAL", e);
         }
+        try {
+            mXiaomiFingerprint = IXiaomiFingerprint.getService();
+            android.util.Log.e("PHH", "Got xiaomi fingerprint HAL");
+        } catch(Exception e) {
+            android.util.Log.e("PHH", "Failed getting xiaomi fingerprint HAL", e);
+        }
         if(samsungHasCmd("fod_enable") && mSamsungFingerprint != null) {
             samsungCmd("fod_enable,1,1,0");
             String actualMaskBrightnessPath = "/sys/class/lcd/panel/actual_mask_brightness";
@@ -729,6 +738,31 @@ public class AuthService extends SystemService {
                         wasOn = true;
                     } else {
                         wasOn = false;
+                    }
+                }
+            };
+            fodFileObserver.startWatching();
+        }
+
+        String xiaomiFodPressedStatusPath = "/sys/class/touch/touch_dev/fod_press_status";
+        if(new File(xiaomiFodPressedStatusPath).exists() && mXiaomiFingerprint != null) {
+            fodFileObserver = new FileObserver(xiaomiFodPressedStatusPath, FileObserver.MODIFY) {
+                @Override
+                public void onEvent(int event, String path) {
+                    String isFodPressed = readFile(xiaomiFodPressedStatusPath);
+                    Slog.d("PHH-Enroll", "Fod pressed status: " + isFodPressed);
+                    Slog.d("PHH-Enroll", "Within xiaomi scenario for FOD");
+
+                    try {
+                    if("0".equals(isFodPressed)) {
+                        Slog.d("PHH-Enroll", "Fod un-pressed!");
+                        mXiaomiFingerprint.extCmd(android.os.SystemProperties.getInt("phh.xiaomi.fod.enrollment.id", 4), 0);
+                    } else if("1".equals(isFodPressed)) {
+                        Slog.d("PHH-Enroll", "Fod pressed!");
+                        mXiaomiFingerprint.extCmd(android.os.SystemProperties.getInt("phh.xiaomi.fod.enrollment.id", 4), 1);
+                    }
+                    } catch(Exception e) {
+                        Slog.d("PHH-Enroll", "Failed Xiaomi async extcmd", e);
                     }
                 }
             };
@@ -933,6 +967,18 @@ public class AuthService extends SystemService {
             udfpsProps[0] = displayRealSize.x/2;
             udfpsProps[1] = 1741;
             udfpsProps[2] = 110;
+            return udfpsProps;
+        }
+
+        if(!TextUtils.isEmpty(android.os.SystemProperties.get("persist.vendor.sys.fp.fod.location.X_Y"))) {
+            int[] udfpsProps = new int[3];
+            String[] coordinates = android.os.SystemProperties.get("persist.vendor.sys.fp.fod.location.X_Y").split(",");
+            udfpsProps[0] = displayRealSize.x/2;
+            udfpsProps[1] = Integer.parseInt(coordinates[1]) + 100;
+
+            String[] widthHeight = android.os.SystemProperties.get("persist.vendor.sys.fp.fod.size.width_height").split(",");
+
+            udfpsProps[2] = (Integer.parseInt(widthHeight[0]) /2);
             return udfpsProps;
         }
 
