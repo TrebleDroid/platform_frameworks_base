@@ -37,6 +37,12 @@ import java.io.File
 
 import vendor.goodix.hardware.biometrics.fingerprint.V2_1.IGoodixFingerprintDaemon
 
+import vendor.xiaomi.hw.touchfeature.V1_0.ITouchFeature 
+import vendor.xiaomi.hardware.fingerprintextension.V1_0.IXiaomiFingerprint
+
+import android.os.Handler
+import android.os.HandlerThread
+
 private const val TAG = "UdfpsView"
 
 
@@ -220,6 +226,12 @@ Log.d("PHH", "Surface destroyed!")
     val hasSamsungMask = File(samsungActualMaskBrightness).exists()
     var fodFileObserver: FileObserver? = null
 
+    val xiaomiDispParam = "/sys/class/mi_display/disp-DSI-0/disp_param"
+    var hasXiaomiLhbm = File(xiaomiDispParam).exists()
+
+    private val handlerThread = HandlerThread("UDFPS").also { it.start() }
+    val myHandler = Handler(handlerThread.looper)
+
     fun configureDisplay(onDisplayConfigured: Runnable) {
         isDisplayConfigured = true
         animationViewController?.onDisplayConfiguring()
@@ -255,6 +267,39 @@ Log.d("PHH", "Surface destroyed!")
         if(android.os.SystemProperties.get("ro.vendor.build.fingerprint").contains("ASUS")) {
             goodixCmd(200001)
         }
+
+        if(hasXiaomiLhbm){
+            Log.d("PHH-Enroll", "Xiaomi scenario in UdfpsView reached!")
+            mySurfaceView.setVisibility(INVISIBLE)
+
+            IXiaomiFingerprint.getService().extCmd(android.os.SystemProperties.getInt("persist.phh.xiaomi.fod.enrollment.id", 4), 1);
+
+            var res = ITouchFeature.getService().setTouchMode(0, 10, 1);
+
+            if(res != 0){
+                Log.d("PHH-Enroll", "SetTouchMode 10,1 was NOT executed successfully. Res is " + res)
+            } 
+        }
+
+        myHandler.postDelayed({
+
+            var ret200 = ITouchFeature.getService().setTouchMode(0, 10, 1);
+
+            if(ret200 != 0){
+                Log.d("PHH-Enroll", "myHandler.postDelayed 200ms -SetTouchMode was NOT executed successfully. Ret is " + ret200)
+            }
+            
+            myHandler.postDelayed({
+                Log.d("PHH-Enroll", "myHandler.postDelayed 600ms - line prior to setTouchMode 10,0")
+
+                var ret600 = ITouchFeature.getService().setTouchMode(0, 10, 0);
+
+                if(ret600 != 0){
+                    Log.d("PHH-Enroll", "myHandler.postDelayed 600ms -SetTouchMode 10,0 was NOT executed successfully. Ret is " + ret600)
+                } 
+            }, 600)    
+
+        }, 200)
     }
 
     fun unconfigureDisplay() {
@@ -296,6 +341,9 @@ Log.d("PHH", "Surface destroyed!")
                 }
             };
             fodFileObserver?.startWatching();
+        } else if(hasXiaomiLhbm) {
+            IXiaomiFingerprint.getService().extCmd(android.os.SystemProperties.getInt("persist.phh.xiaomi.fod.enrollment.id", 4), 0);
+            ITouchFeature.getService().setTouchMode(0, 10, 0);
         } else {
             dimUpdate(0.0f)
         }
