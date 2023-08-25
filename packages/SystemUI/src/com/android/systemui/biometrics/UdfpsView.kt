@@ -279,27 +279,27 @@ Log.d("PHH", "Surface destroyed!")
             if(res != 0){
                 Log.d("PHH-Enroll", "SetTouchMode 10,1 was NOT executed successfully. Res is " + res)
             } 
-        }
 
-        myHandler.postDelayed({
-
-            var ret200 = ITouchFeature.getService().setTouchMode(0, 10, 1);
-
-            if(ret200 != 0){
-                Log.d("PHH-Enroll", "myHandler.postDelayed 200ms -SetTouchMode was NOT executed successfully. Ret is " + ret200)
-            }
-            
             myHandler.postDelayed({
-                Log.d("PHH-Enroll", "myHandler.postDelayed 600ms - line prior to setTouchMode 10,0")
 
-                var ret600 = ITouchFeature.getService().setTouchMode(0, 10, 0);
+                var ret200 = ITouchFeature.getService().setTouchMode(0, 10, 1);
 
-                if(ret600 != 0){
-                    Log.d("PHH-Enroll", "myHandler.postDelayed 600ms -SetTouchMode 10,0 was NOT executed successfully. Ret is " + ret600)
-                } 
-            }, 600)    
+                if(ret200 != 0){
+                    Log.d("PHH-Enroll", "myHandler.postDelayed 200ms -SetTouchMode was NOT executed successfully. Ret is " + ret200)
+                }
+                
+                myHandler.postDelayed({
+                    Log.d("PHH-Enroll", "myHandler.postDelayed 600ms - line prior to setTouchMode 10,0")
 
-        }, 200)
+                    var ret600 = ITouchFeature.getService().setTouchMode(0, 10, 0);
+
+                    if(ret600 != 0){
+                        Log.d("PHH-Enroll", "myHandler.postDelayed 600ms -SetTouchMode 10,0 was NOT executed successfully. Ret is " + ret600)
+                    } 
+                }, 600)    
+
+            }, 200)    
+        }
     }
 
     fun unconfigureDisplay() {
