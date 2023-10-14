@@ -44,6 +44,8 @@ import vendor.xiaomi.hardware.fingerprintextension.V1_0.IXiaomiFingerprint
 import android.os.Handler
 import android.os.HandlerThread
 
+import vendor.nubia.ifaa.V1_0.IIfaa
+
 private const val TAG = "UdfpsView"
 
 /**
@@ -232,6 +234,10 @@ class UdfpsView(
     private val handlerThread = HandlerThread("UDFPS").also { it.start() }
     val myHandler = Handler(handlerThread.looper)
 
+    // This file contain current hbm value
+    val nubiaHbmState = "/sys/kernel/lcd_enhance/hbm_state"
+    var hasNubiaHbm = File(nubiaHbmState).exists()
+
     fun configureDisplay(onDisplayConfigured: Runnable) {
         isDisplayConfigured = true
         animationViewController?.onDisplayConfiguring()
@@ -295,6 +301,11 @@ class UdfpsView(
                 }, 600)
             }, 200)
         }
+          if(hasNubiaHbm) {
+            Log.d("PHH-Enroll", "Nubia scenario in UdfpsView reached!")
+            File(nubiaHbmState).writeText("4095")
+          }
+
     }
 
     fun unconfigureDisplay() {
@@ -339,6 +350,9 @@ class UdfpsView(
         } else if(hasXiaomiLhbm) {
             IXiaomiFingerprint.getService().extCmd(android.os.SystemProperties.getInt("persist.phh.xiaomi.fod.enrollment.id", 4), 0);
             ITouchFeature.getService().setTouchMode(0, 10, 0);
+        } else if(hasNubiaHbm) {
+            Log.d("PHH-Enroll", "Nubia Restore brightness")
+            File(nubiaHbmState).writeText(File("/sys/class/backlight/panel0-backlight/brightness").readText())
         } else {
             dimUpdate(0.0f)
         }
