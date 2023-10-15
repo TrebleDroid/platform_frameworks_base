@@ -34,6 +34,7 @@ import android.widget.FrameLayout
 import com.android.systemui.R
 import com.android.systemui.doze.DozeReceiver
 import java.io.File
+import java.io.FileNotFoundException
 
 import vendor.goodix.hardware.biometrics.fingerprint.V2_1.IGoodixFingerprintDaemon
 
@@ -240,18 +241,31 @@ Log.d("PHH", "Surface destroyed!")
         mySurfaceView.setVisibility(VISIBLE)
         Log.d("PHH", "setting surface visible!")
 
-        val brightnessFile = File("/sys/class/backlight/panel/brightness")
-        val maxBrightnessFile = File("/sys/class/backlight/panel/max_brightness")
+        val brightnessFiles = listOf(
+            File("/sys/class/backlight/panel/brightness"),
+            File("/sys/class/backlight/panel0-backlight/brightness"),
+            File("/sys/devices/platform/soc/soc:mtk_leds/leds/lcd-backlight/brightness")
+        )
+        val maxBrightnessFiles = listOf(
+            File("/sys/class/backlight/panel/max_brightness"),
+            File("/sys/class/backlight/panel0-backlight/max_brightness"),
+            File("/sys/devices/platform/soc/soc:mtk_leds/leds/lcd-backlight/max_brightness")
+        )
 
         var brightness: Double = 0.0
         var maxBrightness: Double = 0.0
+        var bmFilesExist: Boolean = false
 
-        if (brightnessFile.exists() && maxBrightnessFile.exists()) {
-            brightness = brightnessFile.readText().toDouble()
-            maxBrightness = maxBrightnessFile.readText().toDouble()
-        } else {
-            brightness = File("/sys/class/backlight/panel0-backlight/brightness").readText().toDouble()
-            maxBrightness = File("/sys/class/backlight/panel0-backlight/max_brightness").readText().toDouble()
+        brightnessFiles.zip(maxBrightnessFiles) {bFile, mFile ->
+            if (bFile.exists() && mFile.exists()) {
+                bmFilesExist = true
+                brightness = bFile.readText().toDouble()
+                maxBrightness = mFile.readText().toDouble()
+            }
+        }
+
+        if (!bmFilesExist) {
+            throw FileNotFoundException("No brightness files under expected paths")
         }
 
         // Assume HBM is max brightness
