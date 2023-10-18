@@ -1295,7 +1295,7 @@ public class UdfpsController implements DozeReceiver, Dumpable {
                 }
             }
         if(SystemProperties.get("ro.vendor.build.fingerprint").contains("nubia/NX669")) {
-          processCmd(14, 0, 0, new byte[0], 0);
+          processCmd(15, 0, 0, new byte[0], 0);
         }
 
             for (Callback cb : mCallbacks) {
