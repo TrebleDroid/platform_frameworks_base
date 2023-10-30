@@ -346,9 +346,15 @@ public class BrightnessController implements ToggleSlider.Listener, MirroredBrig
                 : MetricsEvent.ACTION_BRIGHTNESS;
         minBacklight = mBrightnessMin;
         maxBacklight = mBrightnessMax;
-        final float valFloat = MathUtils.min(
+        float valFloat = MathUtils.min(
                 convertGammaToLinearFloat(value, minBacklight, maxBacklight),
                 maxBacklight);
+        if (android.os.SystemProperties.getBoolean("persist.sys.phh.linear_brightness", false)) {
+            android.util.Log.e("PHH", "Linear brightness val " + value + " from " + minBacklight + " to " + maxBacklight + " makes " + valFloat);
+            valFloat = value / 65536.0f;
+        }
+        final float finalValFloat = valFloat;
+
         if (stopTracking) {
             // TODO(brightnessfloat): change to use float value instead.
             MetricsLogger.action(mContext, metric,
@@ -359,7 +365,7 @@ public class BrightnessController implements ToggleSlider.Listener, MirroredBrig
         if (!tracking) {
             AsyncTask.execute(new Runnable() {
                     public void run() {
-                        mDisplayManager.setBrightness(mDisplayId, valFloat);
+                        mDisplayManager.setBrightness(mDisplayId, finalValFloat);
                     }
                 });
         }
