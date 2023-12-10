@@ -44,14 +44,18 @@ import com.android.internal.util.DumpUtils;
 import com.android.internal.util.Preconditions;
 import com.android.server.SystemService;
 
+import java.io.File;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+
+import vendor.samsung.hardware.light.ISehLights;
 
 public class LightsService extends SystemService {
     static final String TAG = "LightsService";
@@ -62,6 +66,10 @@ public class LightsService extends SystemService {
 
     @Nullable
     private final Supplier<ILights> mVintfLights;
+
+    @Nullable
+    private ISehLights mSamsungLights;
+    private int mSamsungMaxBrightness;
 
     @VisibleForTesting
     final LightsManagerBinderService mManagerService;
@@ -297,6 +305,17 @@ public class LightsService extends SystemService {
                 int brightnessInt = BrightnessSynchronizer.brightnessFloatToInt(brightness);
 
                 if(mHwLight.id == 0) {
+                    if (mSamsungLights != null && SystemProperties.getBoolean("persist.sys.samsung.full_brightness", false)) {
+                        HwLightState lightState = new HwLightState(); // don't care
+                        try {
+                            int v = (int)Math.round(brightness * mSamsungMaxBrightness);
+                            mSamsungLights.setLightState(mHwLight.id, lightState, v);
+                            Slog.e("PHH", "Set sammy brightness to " + v);
+                        } catch(Throwable t) {
+                            Slog.e("PHH", "Failed setting samsung brightness", t);
+                        }
+                        return;
+                    }
                     String fp = SystemProperties.get("ro.vendor.build.fingerprint", "hello");
                     if(fp.matches(".*astarqlte.*")) {
                         int newBrightness = brightnessInt;
@@ -498,6 +517,27 @@ public class LightsService extends SystemService {
         super(context);
         mH = new Handler(looper);
         mVintfLights = service.get() != null ? service : null;
+
+        if (service.get() != null) {
+            try {
+                mSamsungLights = ISehLights.Stub.asInterface(service.get().asBinder().getExtension());
+                mSamsungMaxBrightness = 510;
+
+                ArrayList<File> paths = new ArrayList<>();
+                paths.add(new File("/sys/class/backlight/panel/max_brightness"));
+                paths.add(new File("/sys/class/backlight/panel0-backlight/max_brightness"));
+                paths.add(new File("/sys/devices/platform/soc/soc:mtk_leds/leds/lcd-backlight/max_brightness"));
+                for(File f: paths) {
+                    try {
+                        List<String> lines = Files.readAllLines(f.toPath());
+                        mSamsungMaxBrightness = Integer.parseInt(lines.get(0));
+                        Slog.e("PHH", "" + f + " gave us " + mSamsungMaxBrightness);
+                    } catch(Throwable t) {}
+                }
+            } catch(Throwable t) {
+                Slog.e("PHH", "Failed getting Samsung lights AIDL", t);
+            }
+        }
 
         populateAvailableLights(context);
         mManagerService = new LightsManagerBinderService();
