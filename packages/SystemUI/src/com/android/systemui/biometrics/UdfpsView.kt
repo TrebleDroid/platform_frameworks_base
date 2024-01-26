@@ -229,8 +229,13 @@ class UdfpsView(
     val hasSamsungMask = File(samsungActualMaskBrightness).exists()
     var fodFileObserver: FileObserver? = null
 
-   val xiaomiDispParam = "/sys/class/mi_display/disp-DSI-0/disp_param"
-    var hasXiaomiLhbm = File(xiaomiDispParam).exists()
+    val xiaomiDispParam = "/sys/class/mi_display/disp-DSI-0/disp_param"
+    var hasXiaomiLhbm = try {
+            val xiaomiFingerprintService = IXiaomiFingerprint.getService()
+            File(xiaomiDispParam).exists() && xiaomiFingerprintService != null
+        } catch(e: Exception) {
+            false
+        }
 
     private val handlerThread = HandlerThread("UDFPS").also { it.start() }
     val myHandler = Handler(handlerThread.looper)
