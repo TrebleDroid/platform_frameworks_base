@@ -915,8 +915,8 @@ public class AuthService extends SystemService {
                 ? modality : (modality & ~BiometricAuthenticator.TYPE_CREDENTIAL);
     }
 
-    private int[] dynamicUdfpsProps() {
-        DisplayManager mDM = (DisplayManager) getContext().getSystemService(Context.DISPLAY_SERVICE);
+    static public int[] dynamicUdfpsProps(Context ctxt) {
+        DisplayManager mDM = (DisplayManager) ctxt.getSystemService(Context.DISPLAY_SERVICE);
         Point displayRealSize = new Point();
         DisplayMetrics displayMetrics = new DisplayMetrics();
         mDM.getDisplay(0).getRealSize(displayRealSize);
@@ -1018,7 +1018,7 @@ public class AuthService extends SystemService {
         boolean isUdfps = !ArrayUtils.isEmpty(udfpsProps);
         if(!isUdfps) {
             try {
-                udfpsProps = dynamicUdfpsProps();
+                udfpsProps = dynamicUdfpsProps(getContext());
             } catch(Throwable t) {
                 Slog.e("PHH-Enroll", "Failed generating UDFPS props");
             }
