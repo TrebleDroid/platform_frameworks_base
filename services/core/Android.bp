@@ -196,6 +196,7 @@ java_library_static {
         "vendor.xiaomi.hardware.fingerprintextension-V1.0-java",
 
         //AIDL
+        "vendor.samsung.hardware.sysinput-V1-java",
         "vendor.samsung.hardware.biometrics.fingerprint-V1-java",
         "vendor.samsung.hardware.light-V1-java",
     ],
