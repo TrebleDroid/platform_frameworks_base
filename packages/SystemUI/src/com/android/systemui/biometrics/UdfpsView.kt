@@ -353,7 +353,7 @@ class UdfpsView(
             };
             fodFileObserver?.startWatching();
         } else if (hasSamsungMask) {
-            fodFileObserver = object: FileObserver(asusGhbmOnAchieved, FileObserver.MODIFY) {
+            fodFileObserver = object: FileObserver(samsungActualMaskBrightness, FileObserver.MODIFY) {
                 override fun onEvent(event: Int, path: String): Unit {
                     Log.d("PHH-Enroll", "samsung mask brightness event")
                     try {
