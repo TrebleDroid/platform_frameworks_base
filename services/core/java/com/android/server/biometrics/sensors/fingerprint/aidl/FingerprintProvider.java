@@ -37,6 +37,7 @@ import android.hardware.biometrics.common.ComponentInfo;
 import android.hardware.biometrics.fingerprint.IFingerprint;
 import android.hardware.biometrics.fingerprint.PointerContext;
 import android.hardware.biometrics.fingerprint.SensorProps;
+import android.hardware.biometrics.fingerprint.SensorLocation;
 import android.hardware.fingerprint.Fingerprint;
 import android.hardware.fingerprint.FingerprintAuthenticateOptions;
 import android.hardware.fingerprint.FingerprintManager;
@@ -188,9 +189,32 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
                 BiometricsProtoEnums.MODALITY_FINGERPRINT, new BiometricNotificationImpl());
 
         final List<SensorLocationInternal> workaroundLocations = getWorkaroundSensorProps(context);
+android.util.Log.e("PHH-Enroll", "Poping AIDL fp provider");
 
         for (SensorProps prop : props) {
             final int sensorId = prop.commonProps.sensorId;
+            SensorLocation[] locations = prop.sensorLocations;
+
+            android.util.Log.e("PHH-Enroll", "Got fp props -- pre");
+            for(SensorLocation loc: locations) {
+                android.util.Log.e("PHH-Enroll", " - " + loc.sensorLocationX + ", " + loc.sensorLocationY + ", " +loc.sensorRadius + ", disp =" + loc.display + ", shape " + loc.sensorShape);
+            }
+            if (locations.length == 1 && locations[0].sensorLocationX == 0) {
+                int[] otherValues = com.android.server.biometrics.AuthService.dynamicUdfpsProps(context);
+                if (otherValues.length > 0) {
+                    SensorLocation loc = new SensorLocation();
+                    loc.sensorLocationX = otherValues[0];
+                    loc.sensorLocationY = otherValues[1];
+                    loc.sensorRadius = otherValues[2];
+                    locations[0] = loc;
+                }
+            }
+
+            android.util.Log.e("PHH-Enroll", "Got fp props -- post");
+            for(SensorLocation loc: locations) {
+                android.util.Log.e("PHH-Enroll", " - " + loc.sensorLocationX + ", " + loc.sensorLocationY + ", " +loc.sensorRadius + ", disp =" + loc.display + ", shape " + loc.sensorShape);
+            }
+
 
             final List<ComponentInfoInternal> componentInfo = new ArrayList<>();
             if (prop.commonProps.componentInfo != null) {
@@ -210,7 +234,7 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
                             prop.halControlsIllumination,
                             true /* resetLockoutRequiresHardwareAuthToken */,
                             !workaroundLocations.isEmpty() ? workaroundLocations :
-                                    Arrays.stream(prop.sensorLocations).map(location ->
+                                    Arrays.stream(locations).map(location ->
                                                     new SensorLocationInternal(
                                                             location.display,
                                                             location.sensorLocationX,
