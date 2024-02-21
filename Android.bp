@@ -232,6 +232,7 @@ java_library {
         "android.hardware.radio.network-V5-java",
         "android.hardware.radio.sim-V5-java",
         "android.hardware.radio.voice-V5-java",
+        "vendor.samsung.hardware.radio.network-V1-java",
         "android.hardware.thermal-V1.0-java-constants",
         "android.hardware.thermal-V1.0-java",
         "android.hardware.thermal-V1.1-java",
