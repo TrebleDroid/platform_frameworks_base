@@ -233,6 +233,7 @@ java_library {
         "android.hardware.gnss-V2.1-java",
         "android.hardware.health-V1.0-java-constants",
         "android.hardware.radio-V1.6-java",
+        "vendor.samsung.hardware.radio-V2.2-java",
         "android.hardware.radio.data-V3-java",
         "android.hardware.radio.ims-V2-java",
         "android.hardware.radio.messaging-V3-java",
