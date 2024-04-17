@@ -214,13 +214,17 @@ android.util.Log.e("PHH-Enroll", "Poping AIDL fp provider");
                 android.util.Log.e("PHH-Enroll", " - " + loc.sensorLocationX + ", " + loc.sensorLocationY + ", " +loc.sensorRadius + ", disp =" + loc.display + ", shape " + loc.sensorShape);
             }
             if (locations.length == 1 && locations[0].sensorLocationX == 0) {
-                int[] otherValues = com.android.server.biometrics.AuthService.dynamicUdfpsProps(context);
-                if (otherValues.length > 0) {
-                    SensorLocation loc = new SensorLocation();
-                    loc.sensorLocationX = otherValues[0];
-                    loc.sensorLocationY = otherValues[1];
-                    loc.sensorRadius = otherValues[2];
-                    locations[0] = loc;
+                try {
+                    int[] otherValues = com.android.server.biometrics.AuthService.dynamicUdfpsProps(context);
+                    if (otherValues.length > 0) {
+                        SensorLocation loc = new SensorLocation();
+                        loc.sensorLocationX = otherValues[0];
+                        loc.sensorLocationY = otherValues[1];
+                        loc.sensorRadius = otherValues[2];
+                        locations[0] = loc;
+                    }
+                } catch(Throwable t) {
+                    android.util.Log.e("PHH-Enroll", "FingerprintProvider dynamicUdfpsProps", t);
                 }
             }
 
