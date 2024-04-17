@@ -277,13 +277,17 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
             android.util.Log.e("PHH-Enroll", " - " + loc.sensorLocationX + ", " + loc.sensorLocationY + ", " +loc.sensorRadius + ", disp =" + loc.display + ", shape " + loc.sensorShape);
         }
         if (prop.sensorLocations.length == 1 && prop.sensorLocations[0].sensorLocationX == 0) {
-            int[] otherValues = com.android.server.biometrics.AuthService.dynamicUdfpsProps(mContext);
-            if (otherValues.length > 0) {
-                SensorLocation loc = new SensorLocation();
-                loc.sensorLocationX = otherValues[0];
-                loc.sensorLocationY = otherValues[1];
-                loc.sensorRadius = otherValues[2];
-                prop.sensorLocations[0] = loc;
+            try {
+                int[] otherValues = com.android.server.biometrics.AuthService.dynamicUdfpsProps(mContext);
+                if (otherValues.length > 0) {
+                    SensorLocation loc = new SensorLocation();
+                    loc.sensorLocationX = otherValues[0];
+                    loc.sensorLocationY = otherValues[1];
+                    loc.sensorRadius = otherValues[2];
+                    prop.sensorLocations[0] = loc;
+                }
+            } catch(Throwable t) {
+                android.util.Log.e("PHH-Enroll", "FingerprintProvider dynamicUdfpsProps", t);
             }
         }
 
