@@ -23,6 +23,7 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.database.ContentObserver
+import android.os.SystemProperties
 import android.os.UserHandle
 import android.provider.Settings
 import android.provider.Settings.ACTION_MEDIA_CONTROLS_SETTINGS
@@ -966,7 +967,7 @@ constructor(
                         desiredHostState.showsOnlyActiveMedia
 
                 for (mediaPlayer in MediaPlayerData.players()) {
-                    if (animate) {
+                    if (animate && !SystemProperties.getBoolean("persist.sys.phh.no_media_carousel_animation", false)) {
                         mediaPlayer.mediaViewController.animatePendingStateChange(
                             duration = duration,
                             delay = startDelay,
