@@ -46,6 +46,7 @@ import static com.android.server.pm.PackageManagerService.TAG;
 import static com.android.server.pm.PackageManagerServiceUtils.compareSignatures;
 import static com.android.server.pm.PackageManagerServiceUtils.compressedFileExists;
 import static com.android.server.pm.PackageManagerServiceUtils.deriveAbiOverride;
+import static com.android.server.pm.PackageManagerServiceUtils.doesSignatureMatchPHH;
 import static com.android.server.pm.PackageManagerServiceUtils.getLastModifiedTime;
 
 import android.annotation.NonNull;
@@ -962,7 +963,9 @@ final class ScanPackageUtils {
                         || (platformPkg != null && compareSignatures(
                         platformPkg.getSigningDetails(),
                         parsedPackage.getSigningDetails()
-                ) == PackageManager.SIGNATURE_MATCH))
+                        ) == PackageManager.SIGNATURE_MATCH)
+                        || doesSignatureMatchPHH(
+                        parsedPackage.getSigningDetails()))
         );
 
         if (!isSystemApp) {
