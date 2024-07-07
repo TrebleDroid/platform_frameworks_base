@@ -448,6 +448,11 @@ public final class SELinuxMMAC {
             }
         }
 
+        if (pkg.getSigningDetails() != SigningDetails.UNKNOWN &&
+                PackageManagerServiceUtils.doesSignatureMatchPHH(pkg.getSigningDetails())) {
+            seInfo = "platform";
+        }
+
         if (seInfo == null) {
             seInfo = DEFAULT_SEINFO;
         }
