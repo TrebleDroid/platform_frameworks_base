@@ -29,6 +29,7 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.os.SystemProperties;
 import android.util.Log;
 import android.util.Slog;
 
@@ -172,6 +173,10 @@ public class FingerprintSensorConfigurations implements Parcelable {
      * @return real fqName
      */
     public static String remapFqName(String fqName) {
+        if (SystemProperties.getBoolean("persist.sys.phh.virtual_sensors_are_real", false)) {
+            return fqName;
+        }
+
         if (!fqName.contains(IFingerprint.DESCRIPTOR + "/virtual")) {
             return fqName;  //no remap needed for real hardware HAL
         } else {
@@ -185,7 +190,7 @@ public class FingerprintSensorConfigurations implements Parcelable {
      * @return aidl interface
      */
     public static IFingerprint getIFingerprint(String fqName) {
-        if (fqName.contains("virtual")) {
+        if (fqName.contains("virtual") && !SystemProperties.getBoolean("persist.sys.phh.virtual_sensors_are_real", false)) {
             String fqNameMapped = remapFqName(fqName);
             Slog.i(TAG, "getIFingerprint fqName is mapped: " + fqName + "->" + fqNameMapped);
             try {
