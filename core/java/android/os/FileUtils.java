@@ -482,7 +482,6 @@ public final class FileUtils {
                     return copyInternalSpliceSocket(in, out, count, signal, executor, listener);
                 }
             } catch (ErrnoException e) {
-                throw e.rethrowAsIOException();
             }
         }
 
