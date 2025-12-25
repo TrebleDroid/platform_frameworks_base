@@ -127,6 +127,8 @@ import java.util.concurrent.Executor;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import javax.inject.Inject;
 import vendor.nubia.ifaa.V1_0.IIfaa;
@@ -191,6 +193,8 @@ public class UdfpsController implements DozeReceiver, Dumpable {
     @NonNull private final InputManager mInputManager;
     @NonNull private final SelectedUserInteractor mSelectedUserInteractor;
     @NonNull private final ColorDisplayManager mColorDisplayManager;
+    private static final String nubiaHbmState = "/sys/kernel/lcd_enhance/hbm_state";
+    private boolean hasNubiaHbm = false;
     private boolean mIgnoreExtraDim;
     private final boolean mIgnoreRefreshRate;
     private final KeyguardTransitionInteractor mKeyguardTransitionInteractor;
@@ -829,6 +833,9 @@ public class UdfpsController implements DozeReceiver, Dumpable {
 
         udfpsHapticsSimulator.setUdfpsController(this);
         udfpsShell.setUdfpsOverlayController(mUdfpsOverlayController);
+        if (SystemProperties.get("ro.vendor.build.fingerprint").contains("nubia/NX669")) {
+            hasNubiaHbm = new File(nubiaHbmState).exists();
+        }
     }
 
     /**
@@ -1134,7 +1141,14 @@ public class UdfpsController implements DozeReceiver, Dumpable {
                     mUdfpsDisplayMode.enable(() -> dispatchOnUiReady(requestId));
             }
         }
-        if(SystemProperties.get("ro.vendor.build.fingerprint").contains("nubia/NX669")) {
+        if (SystemProperties.get("ro.vendor.build.fingerprint").contains("nubia/NX669")) {
+            if (hasNubiaHbm) {
+                try {
+                    Files.write(Paths.get(nubiaHbmState), "4095".getBytes());
+                } catch (IOException e) {
+                    Log.e(TAG, "Failed to write to " + nubiaHbmState, e);
+                }
+            }
             processCmd(13, 0, 0, new byte[0], 0);
         }
 
@@ -1143,7 +1157,7 @@ public class UdfpsController implements DozeReceiver, Dumpable {
                 cb.onFingerDown();
             }
         }
-        if(SystemProperties.get("ro.vendor.build.fingerprint").contains("nubia/NX669")) {
+        if (SystemProperties.get("ro.vendor.build.fingerprint").contains("nubia/NX669")) {
             processCmd(14, 0, 0, new byte[0], 0);
         }
 
@@ -1188,6 +1202,14 @@ public class UdfpsController implements DozeReceiver, Dumpable {
                     y, minor, major, orientation, time, gestureStart, isAod);
             if(SystemProperties.get("ro.vendor.build.fingerprint").contains("nubia/NX669")) {
                 processCmd(15, 0, 0, new byte[0], 0);
+                if (hasNubiaHbm) {
+                    try {
+                        String brightness = new String(Files.readAllBytes(Paths.get("/sys/class/backlight/panel0-backlight/brightness"))).trim();
+                        Files.write(Paths.get(nubiaHbmState), brightness.getBytes());
+                    } catch (IOException e) {
+                        Log.e(TAG, "Failed to write to " + nubiaHbmState, e);
+                    }
+                }
             }
 
             if (isOptical()) {
