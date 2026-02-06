@@ -1292,6 +1292,21 @@ public class AuthService extends SystemService {
             return udfpsProps;
         }
 
+       String fpLocationOplus = android.os.SystemProperties.get("persist.vendor.fingerprint.optical.sensorlocation");
+       if(!TextUtils.isEmpty(fpLocationOplus) && fpLocationOplus.contains("::")) {
+            int[] udfpsProps = new int[3];
+            String[] coordinates = fpLocationOplus.split("::");
+            udfpsProps[0] = Integer.parseInt(coordinates[0]);
+            udfpsProps[1] = Integer.parseInt(coordinates[1]);
+
+            String iconSize = android.os.SystemProperties.get("persist.vendor.fingerprint.optical.iconsize");
+            udfpsProps[2] = (Integer.parseInt(iconSize) /2);
+
+            Slog.d("PHH-Enroll", "Oplus/OPPO UDFPS detected. Props: " + Arrays.toString(udfpsProps));
+
+            return udfpsProps;
+        }
+
        String fpLocation = android.os.SystemProperties.get("persist.vendor.sys.fp.fod.location.X_Y");
        if(!TextUtils.isEmpty(fpLocation) && fpLocation.contains(",")) {
             int[] udfpsProps = new int[3];
