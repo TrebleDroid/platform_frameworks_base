@@ -58,6 +58,7 @@ import android.os.Handler;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.os.SystemProperties;
 import android.util.Log;
 import android.util.RotationUtils;
 import android.util.SparseBooleanArray;
@@ -217,6 +218,10 @@ public class AuthController implements
         }
     };
 
+    private void oplusFpUiReady(boolean fingerDown) {
+        SystemProperties.set("sys.phh.oplus.fppress", fingerDown ? "1" : "0");
+    }
+
     private void closeDialog(String reasonString) {
         closeDialog(BiometricPrompt.DISMISSED_REASON_USER_CANCEL, reasonString);
     }
@@ -297,10 +302,12 @@ public class AuthController implements
             mUdfpsController.addCallback(new UdfpsController.Callback() {
                 @Override
                 public void onFingerUp() {
+                        oplusFpUiReady(false);
                 }
 
                 @Override
                 public void onFingerDown() {
+                        oplusFpUiReady(true);
                     if (mCurrentDialog != null) {
                         mCurrentDialog.onPointerDown();
                     }

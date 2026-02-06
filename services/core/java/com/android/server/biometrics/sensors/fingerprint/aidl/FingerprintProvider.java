@@ -20,6 +20,8 @@ import static android.hardware.fingerprint.FingerprintManager.SENSOR_ID_ANY;
 import static android.hardware.fingerprint.FingerprintSensorConfigurations.getIFingerprint;
 import static android.hardware.fingerprint.FingerprintSensorConfigurations.remapFqName;
 
+import static android.hardware.fingerprint.FingerprintSensorProperties.TYPE_UDFPS_OPTICAL;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
@@ -295,6 +297,12 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
         android.util.Log.e("PHH-Enroll", "Got fp props -- post");
         for(SensorLocation loc: prop.sensorLocations) {
             android.util.Log.e("PHH-Enroll", " - " + loc.sensorLocationX + ", " + loc.sensorLocationY + ", " +loc.sensorRadius + ", disp =" + loc.display + ", shape " + loc.sensorShape);
+        }
+
+        if (prop.sensorLocations.length == 1 && prop.sensorLocations[0].sensorLocationX > 0) {
+            android.util.Log.e("PHH-Enroll", "Set fingerprint sensor type UDFPS Optical");
+            prop.sensorType = TYPE_UDFPS_OPTICAL;
+            prop.halHandlesDisplayTouches = true;
         }
 
         final Sensor sensor = new Sensor(this, mContext, mHandler, prop, mBiometricContext,
